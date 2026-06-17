@@ -108,8 +108,8 @@ SECURITY_ALERTS_FILE = os.path.join(BASE_PATH, 'security_alerts.json')
 NODEJS_PROCS_FILE  = os.path.join(BASE_PATH, 'nodejs_procs.json')
 PHP_CONFIG_FILE    = os.path.join(BASE_PATH, 'php_config.json')
 
-PROFILE_IMAGE_URL = "https://k.top4top.io/p_3785nf0ym1.jpg"
-ENTRY_SOUND_URL   = "https://b.top4top.io/m_3785fa5tu2.mp4"
+PROFILE_IMAGE_URL = "https://h.top4top.io/p_3820pynba0.png"
+ENTRY_SOUND_URL   = "https://k.top4top.io/m_38204qib81.mp4"
 
 # ─────────────────────────────────────────────
 #  3.  JSON Helpers
@@ -991,7 +991,7 @@ body{
     radial-gradient(ellipse at 15% 50%,rgba(192,57,43,.4) 0%,transparent 55%),
     radial-gradient(ellipse at 85% 20%,rgba(142,68,173,.3) 0%,transparent 50%),
     radial-gradient(ellipse at 50% 100%,rgba(231,76,60,.2) 0%,transparent 60%),
-    url('https://i.ibb.co/60Zvqk5L/photo.jpg') center/cover no-repeat fixed,
+    url('https://c.top4top.io/p_3820uop3i0.png') center/cover no-repeat fixed,
     #080b12;
   position:relative;overflow:hidden;
 }
@@ -1182,7 +1182,7 @@ body::before{
     <!-- ── Logo Block ── -->
     <div class="logo-block">
       <img class="logo-img"
-           src="https://i.ibb.co/60Zvqk5L/photo.jpg"
+           src="https://c.top4top.io/p_3820uop3i0.png"
            alt="SERVER HUB"
            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
       <div style="display:none;width:90px;height:90px;border-radius:50%;background:linear-gradient(135deg,#7c5cfc,#00bfff);align-items:center;justify-content:center;font-size:36px;border:3px solid rgba(124,92,252,.5);box-shadow:0 0 30px rgba(124,92,252,.4)">🚀</div>
