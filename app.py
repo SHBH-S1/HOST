@@ -2,7 +2,7 @@
 """
 ╔══════════════════════════════════════════════════════════════════════════╗
 ║  🚀 SERVER HUB — Professional Hosting Control Panel                      ║
-║  Version: 2.0  |  By: @SHBH_S1  |  Admin: RIKO                           ║
+║  Version: 2.0  |  By: SHBH_S1  |  Admin: RIKO                       ║
 ╠══════════════════════════════════════════════════════════════════════════╣
 ║  - Full PHP / Node.js / Python support                                   ║
 ║  - Docker user isolation                                                 ║
@@ -108,110 +108,55 @@ SECURITY_ALERTS_FILE = os.path.join(BASE_PATH, 'security_alerts.json')
 NODEJS_PROCS_FILE  = os.path.join(BASE_PATH, 'nodejs_procs.json')
 PHP_CONFIG_FILE    = os.path.join(BASE_PATH, 'php_config.json')
 
-PROFILE_IMAGE_URL = "https://j.top4top.io/p_3820hbxes1.png"
+PROFILE_IMAGE_URL = "https://k.top4top.io/p_3785nf0ym1.jpg"
 ENTRY_SOUND_URL   = "https://b.top4top.io/m_3785fa5tu2.mp4"
 
 # ─────────────────────────────────────────────
-#  3.  JSON Helpers (Advanced & Thread-Safe)
+#  3.  JSON Helpers
 # ─────────────────────────────────────────────
-import tempfile
-import logging
-from threading import Lock
-
-# قاموس لحفظ الأقفال لكل ملف لمنع تداخل الكتابة والقراءة في نفس اللحظة
-_file_locks = {}
-
-def _get_file_lock(path):
-    if path not in _file_locks:
-        _file_locks[path] = Lock()
-    return _file_locks[path]
-
 def init_json_file(path, default):
-    """تهيئة الملف إذا لم يكن موجوداً بطريقة آمنة"""
-    with _get_file_lock(path):
-        if not os.path.exists(path):
-            try:
-                with open(path, 'w', encoding='utf-8') as f:
-                    json.dump(default, f, indent=2, ensure_ascii=False)
-            except Exception as e:
-                logging.error(f"[JSON ERROR] Failed to initialize {path}: {str(e)}")
+    if not os.path.exists(path):
+        try:
+            with open(path, 'w', encoding='utf-8') as f:
+                json.dump(default, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
 
 def load_json_file(path, default=None):
-    """قراءة الملف بشكل آمن مع معالجة أخطاء التنسيق"""
-    with _get_file_lock(path):
-        try:
-            if os.path.exists(path):
-                with open(path, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-        except json.JSONDecodeError:
-            logging.error(f"[JSON ERROR] Corrupt JSON format in {path}. Loading default.")
-        except Exception as e:
-            logging.error(f"[JSON ERROR] Failed to load {path}: {str(e)}")
-        
-        return default if default is not None else {}
+    try:
+        if os.path.exists(path):
+            with open(path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return default if default is not None else {}
 
 def save_json_file(path, data):
-    """الكتابة الآمنة (Atomic Write): يكتب في ملف مؤقت ثم يستبدله لمنع التلف"""
-    with _get_file_lock(path):
-        tmp_path = None
-        try:
-            dir_name = os.path.dirname(path)
-            os.makedirs(dir_name, exist_ok=True)
-            
-            # إنشاء ملف مؤقت للكتابة
-            fd, tmp_path = tempfile.mkstemp(dir=dir_name, prefix="tmp_", suffix=".json")
-            with os.fdopen(fd, 'w', encoding='utf-8') as f:
-                json.dump(data, f, indent=2, ensure_ascii=False, default=str)
-            
-            # استبدال الملف القديم بالجديد في خطوة واحدة آمنة (Atomic)
-            os.replace(tmp_path, path)
-            return True
-        except Exception as e:
-            logging.error(f"[JSON ERROR] Failed to save {path}: {str(e)}")
-            # تنظيف الملف المؤقت في حال فشل العملية
-            if tmp_path and os.path.exists(tmp_path):
-                try:
-                    os.remove(tmp_path)
-                except Exception:
-                    pass
-            return False
+    try:
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False, default=str)
+        return True
+    except Exception:
+        return False
 
 # ─────────────────────────────────────────────
-#  4.  Master Config & Storage System
+#  4.  Master Config
 # ─────────────────────────────────────────────
-import logging
-
 def load_master_config():
-    """تحميل إعدادات المالك مع ميزة الإصلاح التلقائي (Self-Healing)"""
     default = {
         'master_username': 'RIKO',
         'master_password_hash': hashlib.sha256('Bahaa123.'.encode()).hexdigest(),
         'port': 3178,
         'main_file': 'main.py'
     }
-    
     if not os.path.exists(MASTER_CONFIG_FILE):
-        logging.info(f"[CONFIG] Creating new master config for {default['master_username']}")
         save_json_file(MASTER_CONFIG_FILE, default)
         return default
-        
     cfg = load_json_file(MASTER_CONFIG_FILE)
-    if not cfg or not isinstance(cfg, dict):
-        logging.warning("[CONFIG] Master config corrupted. Restoring defaults.")
-        save_json_file(MASTER_CONFIG_FILE, default)
+    if not cfg:
         return default
-        
-    # الإصلاح التلقائي: التحقق من المفاتيح المفقودة وإضافتها ثم حفظ الملف
-    needs_saving = False
     for k, v in default.items():
-        if k not in cfg:
-            cfg[k] = v
-            needs_saving = True
-            
-    if needs_saving:
-        logging.info("[CONFIG] Repairing missing keys in master config.")
-        save_json_file(MASTER_CONFIG_FILE, cfg)
-        
+        cfg.setdefault(k, v)
     return cfg
 
 MASTER_CONFIG        = load_master_config()
@@ -220,50 +165,11 @@ MASTER_PASSWORD_HASH = MASTER_CONFIG.get('master_password_hash')
 SERVER_START_TIME    = time.time()
 
 # ─────────────────────────────────────────────
-#  نظام المساحات المخصص (Storage Limits)
-# ─────────────────────────────────────────────
-PLAN_STORAGE_LIMITS = {
-    'free_trial': 1 * 1024**3,  # 1 جيجا بايت (المجاني)
-    'paid_20':    2 * 1024**3,  # 2 جيجا بايت (الوسط)
-    'paid_30':    4 * 1024**3,  # 4 جيجا بايت (الكبير)
-    'custom':     6 * 1024**3   # 6 جيجا بايت (أقصى شيء)
-}
-
-def get_user_storage_usage(username):
-    """حساب المساحة المستخدمة حالياً للمستخدم (بالبايت)"""
-    if username == MASTER_USERNAME:
-        return 0
-    p = get_user_path(username)
-    size = 0
-    if os.path.exists(p):
-        for r, d, f in os.walk(p):
-            for fl in f:
-                fp = os.path.join(r, fl)
-                if os.path.exists(fp):
-                    size += os.path.getsize(fp)
-    return size
-
-def can_user_upload(username, file_size=0):
-    """التحقق مما إذا كان المستخدم يمتلك مساحة كافية للرفع حسب خطته"""
-    if username == MASTER_USERNAME:
-        return True
-    
-    users = load_users()
-    ud = users.get(username, {})
-    
-    plan = ud.get('plan', 'free_trial') 
-    limit = PLAN_STORAGE_LIMITS.get(plan, 1 * 1024**3)
-    current_usage = get_user_storage_usage(username)
-    
-    return (current_usage + file_size) <= limit
-
-# ─────────────────────────────────────────────
 #  5.  Create Folders & Init Files
 # ─────────────────────────────────────────────
 for _f in [USERS_FOLDER, TEMP_FOLDER, BACKUPS_FOLDER]:
     os.makedirs(_f, exist_ok=True)
 
-# تهيئة ملفات قواعد البيانات لتتوافق مع لوحة تحكم الموقع
 init_json_file(USERS_FILE, {})
 init_json_file(PROCESSES_FILE, {})
 init_json_file(SCHEDULES_FILE, {})
@@ -272,28 +178,23 @@ init_json_file(PACKAGES_FILE, {'pip': [], 'apt': [], 'npm': []})
 init_json_file(DOCKER_FILE, {'containers': [], 'images': []})
 init_json_file(PORTS_FILE, {'ports': []})
 init_json_file(ACTIVITY_FILE, {'events': []})
-
-# إعدادات المالك الافتراضية (تم تجهيزها لـ RIKO)
 init_json_file(OWNER_CONFIG_FILE, {
-    'telegram_token': '', 
-    'telegram_owner_id': '', 
-    'bot_linked': False,
-    'panel_name': 'DEV RIKO PANEL', 
-    'welcome_msg': 'Welcome to DEV RIKO Hosting'
+    'telegram_token': '', 'telegram_owner_id': '', 'bot_linked': False,
+    'panel_name': 'SERVER HUB', 'welcome_msg': 'Welcome to SERVER HUB'
 })
 init_json_file(MAINTENANCE_FILE, {'enabled': False, 'message': 'Under maintenance. Try later.'})
-init_json_file(BOT_STATS_FILE, {'total_users':0, 'total_servers':0, 'active_bots':0, 'zip_files':0, 'last_updated':''})
+init_json_file(BOT_STATS_FILE, {'total_users':0,'total_servers':0,'active_bots':0,'zip_files':0,'last_updated':''})
 init_json_file(ANNOUNCE_FILE, {'list': []})
 init_json_file(SECURITY_ALERTS_FILE, {'alerts': []})
 init_json_file(NODEJS_PROCS_FILE, {})
 init_json_file(PHP_CONFIG_FILE, {'default_version': '8.1'})
 
 # ─────────────────────────────────────────────
-#  6.  Owner Helpers & Site Approvals (نظام المراجعة من الموقع)
+#  6.  Owner helpers
 # ─────────────────────────────────────────────
 def load_owner_config():
     d = {'telegram_token':'','telegram_owner_id':'','bot_linked':False,
-         'panel_name':'DEV RIKO PANEL','welcome_msg':'Welcome to DEV RIKO Hosting'}
+         'panel_name':'SERVER HUB','welcome_msg':'Welcome to SERVER HUB'}
     cfg = load_json_file(OWNER_CONFIG_FILE, d)
     for k,v in d.items(): cfg.setdefault(k,v)
     return cfg
@@ -304,14 +205,9 @@ def load_bot_stats(): return load_json_file(BOT_STATS_FILE, {})
 def load_announcements(): return load_json_file(ANNOUNCE_FILE, {'list':[]})
 def save_announcements(d): save_json_file(ANNOUNCE_FILE, d)
 
-def load_security_alerts(): 
-    return load_json_file(SECURITY_ALERTS_FILE, {'alerts':[]})
-
+def load_security_alerts(): return load_json_file(SECURITY_ALERTS_FILE, {'alerts':[]})
 def save_security_alert(username, filename, threats, ip):
-    """
-    حفظ التنبيه الأمني في الموقع ليقوم المالك (RIKO) بمراجعته من اللوحة
-    (يظهر في قسم Security Alerts بانتظار الموافقة/المراجعة)
-    """
+    """Store a security alert and return the alert dict."""
     data = load_security_alerts()
     alert = {
         'id': str(uuid.uuid4())[:8],
@@ -320,310 +216,163 @@ def save_security_alert(username, filename, threats, ip):
         'threats': threats,
         'ip': ip,
         'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        'reviewed': False  # بانتظار مراجعة المالك من الموقع
+        'reviewed': False
     }
     data['alerts'].insert(0, alert)
-    data['alerts'] = data['alerts'][:200]   # الاحتفاظ بآخر 200 تنبيه فقط
+    data['alerts'] = data['alerts'][:200]   # keep last 200
     save_json_file(SECURITY_ALERTS_FILE, data)
     return alert
 
 # ─────────────────────────────────────────────
-#  6.  Owner Helpers (مساعدات المالك - مخصصة لـ RIKO)
-# ─────────────────────────────────────────────
-def load_owner_config():
-    # تم تغيير الأسماء الافتراضية لتناسب هوية RIKO
-    d = {
-        'telegram_token': '', 
-        'telegram_owner_id': '', 
-        'bot_linked': False,
-        'panel_name': 'DEV RIKO PANEL', 
-        'welcome_msg': 'Welcome to DEV RIKO Hosting'
-    }
-    cfg = load_json_file(OWNER_CONFIG_FILE, d)
-    for k, v in d.items(): 
-        cfg.setdefault(k, v)
-    return cfg
-
-def load_maintenance(): 
-    return load_json_file(MAINTENANCE_FILE, {'enabled': False, 'message': 'Under maintenance'})
-
-def save_maintenance(d): 
-    save_json_file(MAINTENANCE_FILE, d)
-
-def load_bot_stats(): 
-    return load_json_file(BOT_STATS_FILE, {})
-
-def load_announcements(): 
-    return load_json_file(ANNOUNCE_FILE, {'list': []})
-
-def save_announcements(d): 
-    save_json_file(ANNOUNCE_FILE, d)
-
-def load_security_alerts(): 
-    return load_json_file(SECURITY_ALERTS_FILE, {'alerts': []})
-
-def save_security_alert(username, filename, threats, ip):
-    """
-    حفظ التنبيه الأمني ليتم مراجعته من لوحة التحكم داخل الموقع
-    وإظهاره للمالك في قسم التنبيهات الأمنية.
-    """
-    data = load_security_alerts()
-    alert = {
-        'id': str(uuid.uuid4())[:8],
-        'username': username,
-        'filename': filename,
-        'threats': threats,
-        'ip': ip,
-        'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        'reviewed': False  # بانتظار مراجعة المالك من اللوحة
-    }
-    data['alerts'].insert(0, alert)
-    data['alerts'] = data['alerts'][:200]   # الاحتفاظ بآخر 200 تنبيه لتخفيف الضغط على ملف الـ JSON
-    save_json_file(SECURITY_ALERTS_FILE, data)
-    return alert
-
-# ─────────────────────────────────────────────
-#  7.  Flask App & Security Headers
+#  7.  Flask App
 # ─────────────────────────────────────────────
 app = Flask(__name__)
 
-# إعداد مفتاح التشفير السري للجلسات
 _SECRET_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.secret_key')
 if os.path.exists(_SECRET_FILE):
     with open(_SECRET_FILE) as _sf:
         app.secret_key = _sf.read().strip()
 else:
     _k = secrets.token_hex(64)
-    with open(_SECRET_FILE, 'w') as _sf:
-        _sf.write(_k)
+    open(_SECRET_FILE, 'w').write(_k)
     app.secret_key = _k
 
-# إعدادات الجلسات والحماية
 app.permanent_session_lifetime = timedelta(days=30)
-# تحديد أقصى حجم للرفع بـ 6 جيجا (لحماية السيرفر من هجمات إغراق الذاكرة DoS)
-app.config['MAX_CONTENT_LENGTH'] = 6 * 1024 * 1024 * 1024  
+app.config['MAX_CONTENT_LENGTH'] = None
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 @app.before_request
 def check_maintenance():
-    """التحقق من وضع الصيانة قبل أي طلب"""
     maint = load_maintenance()
     if not maint.get('enabled'):
         return None
-    # استثناء المسارات الأساسية والأدمن من شاشة الصيانة
-    if request.path in ['/login', '/logout', '/register'] or request.path.startswith('/api/'):
+    if request.path in ['/login','/logout','/register'] or request.path.startswith('/api/'):
         return None
     if session.get('username') == MASTER_USERNAME:
         return None
-    return render_template_string(MAINTENANCE_TMPL, message=maint.get('message', 'Under maintenance. Try later.')), 503
-
-@app.after_request
-def add_security_headers(response):
-    """إضافة ترويسات حماية أمنية للوحة التحكم لمنع الاختراقات الشائعة"""
-    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
-    response.headers['X-Content-Type-Options'] = 'nosniff'
-    response.headers['X-XSS-Protection'] = '1; mode=block'
-    return response
+    return render_template_string(MAINTENANCE_TMPL, message=maint.get('message','Under maintenance')), 503
 
 # ─────────────────────────────────────────────
-#  8.  Activity & Logging (Enhanced & Thread-Safe)
+#  8.  Activity & Logging
 # ─────────────────────────────────────────────
-import logging
-from threading import Lock
-from flask import request, has_request_context
-
-# قفل لمنع التداخل أثناء الكتابة في الملف النصي للأنشطة
-_log_file_lock = Lock()
-
 def add_activity_event(username, action, details=''):
-    """إضافة حدث إلى ملف الأنشطة (JSON) ليُعرض في لوحة تحكم الموقع بشكل آمن"""
     try:
-        # قص التفاصيل إذا كانت طويلة جداً لمنع تضخم ملف الـ JSON
-        safe_details = str(details)[:500] + ('...' if len(str(details)) > 500 else '')
-        
-        # جلب الآيبي بشكل آمن للعمليات المباشرة أو عمليات الخلفية
-        ip_addr = '-'
-        if has_request_context():
-            ip_addr = request.remote_addr or '-'
-
         data = load_json_file(ACTIVITY_FILE, {'events': []})
         events = data.get('events', [])
-        
         events.insert(0, {
             'id': str(uuid.uuid4())[:8],
             'username': username,
             'action': action,
-            'details': safe_details,
-            'ip': ip_addr,
+            'details': details,
+            'ip': request.remote_addr if request else '-',
             'timestamp': datetime.now().isoformat(),
             'time_text': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         })
-        
-        # نحتفظ بآخر 300 حدث فقط لتخفيف الضغط وتقليل حجم الملف
         save_json_file(ACTIVITY_FILE, {'events': events[:300]})
-    except Exception as e:
-        logging.error(f"[LOG ERROR] Failed to add activity event for {username}: {str(e)}")
+    except Exception:
+        pass
 
 def log_activity(username, action, details=''):
-    """تسجيل الأنشطة في ملف نصي (Log) وفي نظام الأنشطة (JSON) مع منع تداخل الكتابة"""
     try:
         ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        # تنظيف التفاصيل لتكون في سطر واحد لسهولة القراءة النصية
-        safe_details = str(details).replace('\n', ' ')[:500] 
-        log_line = f"[{ts}] [{username}] {action} | {safe_details}\n"
-        
-        # استخدام القفل لمنع تداخل العمليات أثناء الكتابة في الملف النصي
-        with _log_file_lock:
-            with open(LOGS_FILE, 'a', encoding='utf-8') as f:
-                f.write(log_line)
-                
-        # توجيه الحدث ليتم تسجيله في واجهة الموقع
+        with open(LOGS_FILE, 'a', encoding='utf-8') as f:
+            f.write(f'[{ts}] [{username}] {action} | {details}\n')
         add_activity_event(username, action, details)
-    except Exception as e:
-        logging.error(f"[LOG ERROR] Failed to log activity for {username}: {str(e)}")
+    except Exception:
+        pass
 
 # ─────────────────────────────────────────────
-#  9.  Replit KV Store & Data Helpers (Enhanced)
+#  9.  Replit KV Store
 # ─────────────────────────────────────────────
-import logging
-
 _REPLIT_DB_URL = os.environ.get('REPLIT_DB_URL','')
-_KV_USERS_KEY  = 'serverhub_users_v2'  # لم أغير المفتاح لكي لا تفقد بيانات المستخدمين السابقة
+_KV_USERS_KEY  = 'serverhub_users_v2'
 
 def _kv_get(key):
-    """جلب البيانات من Replit DB مع تسجيل الأخطاء"""
-    if not _REPLIT_DB_URL: 
-        return None
+    if not _REPLIT_DB_URL: return None
     try:
         url = _REPLIT_DB_URL.rstrip('/') + '/' + urllib.parse.quote(key, safe='')
         with urllib.request.urlopen(urllib.request.Request(url), timeout=5) as r:
             return r.read().decode('utf-8')
-    except Exception as e:
-        logging.error(f"[KV STORE] GET Error for {key}: {e}")
+    except Exception:
         return None
 
 def _kv_set(key, value):
-    """حفظ البيانات في Replit DB مع تسجيل الأخطاء"""
-    if not _REPLIT_DB_URL: 
-        return False
+    if not _REPLIT_DB_URL: return False
     try:
-        data = urllib.parse.urlencode({key: value}).encode('utf-8')
-        req = urllib.request.Request(_REPLIT_DB_URL, data=data, method='POST')
-        with urllib.request.urlopen(req, timeout=5):
-            pass
+        data = urllib.parse.urlencode({key:value}).encode('utf-8')
+        urllib.request.urlopen(urllib.request.Request(_REPLIT_DB_URL, data=data, method='POST'), timeout=5)
         return True
-    except Exception as e:
-        logging.error(f"[KV STORE] SET Error for {key}: {e}")
+    except Exception:
         return False
 
 def load_users():
-    """تحميل المستخدمين (الأولوية لقاعدة بيانات Replit ثم الملف المحلي)"""
     if _REPLIT_DB_URL:
         raw = _kv_get(_KV_USERS_KEY)
         if raw:
             try:
                 d = json.loads(raw)
                 if isinstance(d, dict):
-                    # تحديث الملف المحلي ليكون نسخة احتياطية
                     save_json_file(USERS_FILE, d)
                     return d
-            except json.JSONDecodeError:
-                logging.error("[KV STORE] Corrupted users data in Replit DB.")
-            except Exception as e:
-                logging.error(f"[KV STORE] load_users Error: {e}")
-                
-    # الاعتماد على الملف المحلي في حال فشل Replit أو عدم توفره
+            except Exception:
+                pass
     return load_json_file(USERS_FILE, {})
 
 def save_users(u):
-    """حفظ بيانات المستخدمين بحماية متقدمة ضد الحذف العشوائي"""
-    if not isinstance(u, dict): 
-        logging.warning("[USERS] Attempted to save non-dict users data. Blocked.")
-        return
-        
+    if not isinstance(u, dict): return
     existing = load_json_file(USERS_FILE, {})
-    
-    # حماية ضد مسح جميع المستخدمين بالخطأ
     if not u and existing:
-        logging.warning("[USERS] Attempted to wipe out all existing users. Blocked for safety.")
         return
-        
     save_json_file(USERS_FILE, u)
-    
-    if _REPLIT_DB_URL:
-        if not _kv_set(_KV_USERS_KEY, json.dumps(u, ensure_ascii=False)):
-            logging.error("[KV STORE] Failed to sync users to Replit DB.")
+    _kv_set(_KV_USERS_KEY, json.dumps(u, ensure_ascii=False))
 
-# ─────────────────────────────────────────────
-# دوال التحميل والحفظ الآمنة لباقي البيانات
-# ─────────────────────────────────────────────
-def load_processes():     return load_json_file(PROCESSES_FILE, {})
+def load_processes():     return load_json_file(PROCESSES_FILE)
 def save_processes(p):    save_json_file(PROCESSES_FILE, p)
-
-def load_schedules():     return load_json_file(SCHEDULES_FILE, {})
+def load_schedules():     return load_json_file(SCHEDULES_FILE)
 def save_schedules(s):    save_json_file(SCHEDULES_FILE, s)
-
-def load_user_sessions(): return load_json_file(USER_SESSIONS_FILE, {})
+def load_user_sessions(): return load_json_file(USER_SESSIONS_FILE)
 def save_user_sessions(s):save_json_file(USER_SESSIONS_FILE, s)
-
-def load_packages():      return load_json_file(PACKAGES_FILE, {'pip':[], 'apt':[], 'npm':[]})
+def load_packages():      return load_json_file(PACKAGES_FILE)
 def save_packages(p):     save_json_file(PACKAGES_FILE, p)
-
-def load_ports():         return load_json_file(PORTS_FILE, {'ports':[]}).get('ports', [])
-def save_ports(p):        save_json_file(PORTS_FILE, {'ports': p})
+def load_ports():         return load_json_file(PORTS_FILE, {'ports':[]}).get('ports',[])
+def save_ports(p):        save_json_file(PORTS_FILE, {'ports':p})
 
 # ─────────────────────────────────────────────
 #  10.  User Paths & Session Helpers
 # ─────────────────────────────────────────────
-import os
-from threading import Lock
-from datetime import datetime
-
-_session_lock = Lock()
-
 def get_user_path(username):
     if username == MASTER_USERNAME:
         return BASE_PATH
     return os.path.join(USERS_FOLDER, username)
 
 def ensure_user_folder(username):
-    if username == MASTER_USERNAME: 
-        return
+    if username == MASTER_USERNAME: return
     p = get_user_path(username)
     os.makedirs(p, exist_ok=True)
 
 def is_path_allowed(username, path):
-    """حماية صارمة لمنع الوصول لملفات خارج مجلد المستخدم (Path Traversal)"""
     try:
-        base = os.path.abspath(os.path.realpath(get_user_path(username)))
-        target = os.path.abspath(os.path.realpath(str(path)))
+        base = os.path.realpath(get_user_path(username))
+        target = os.path.realpath(str(path))
         return target.startswith(base)
     except Exception:
         return False
 
 def register_session(username):
-    """تسجيل الدخول مع منع التداخل (Race Condition)"""
-    with _session_lock:
-        s = load_user_sessions()
-        s[username] = s.get(username, 0) + 1
-        save_user_sessions(s)
+    s = load_user_sessions()
+    s[username] = s.get(username, 0) + 1
+    save_user_sessions(s)
 
 def unregister_session(username):
-    with _session_lock:
-        s = load_user_sessions()
-        s[username] = max(0, s.get(username, 1) - 1)
-        save_user_sessions(s)
+    s = load_user_sessions()
+    s[username] = max(0, s.get(username, 1) - 1)
+    save_user_sessions(s)
 
 def can_user_login(username):
-    if username == MASTER_USERNAME:
-        return True
-        
     users = load_users()
     ud = users.get(username, {})
-    if not isinstance(ud, dict): 
-        return True
-        
-    # التحقق من تاريخ انتهاء الصلاحية
+    if not isinstance(ud, dict): return True
+    # check expiry
     exp = ud.get('expiry')
     if exp:
         try:
@@ -631,50 +380,35 @@ def can_user_login(username):
                 return False
         except Exception:
             pass
-            
-    # التحقق من الحد الأقصى للجلسات
+    # check max sessions
     mx = ud.get('max_sessions', 999)
     s = load_user_sessions()
     return s.get(username, 0) < mx
 
 # ─────────────────────────────────────────────
-#  11.  System Stats (Enhanced for Server Management)
+#  11.  System Stats
 # ─────────────────────────────────────────────
-import psutil
-import socket
-import time
-import platform
-import sys
-import os
-import logging
-
 def get_system_stats():
-    """جلب إحصائيات السيرفر الحية بدقة عالية وعرضها في لوحة التحكم"""
     try:
         cpu = psutil.cpu_percent(interval=0.1)
         mem = psutil.virtual_memory()
-        
-        # قراءة مساحة القرص الخاصة بمسار الاستضافة الفعلي بدلاً من الجذر لتجنب أخطاء الصلاحيات
-        disk_path = os.path.realpath(BASE_PATH)
-        disk = psutil.disk_usage(disk_path)
-        
+        disk = psutil.disk_usage('/')
         net = psutil.net_io_counters()
-        
         uptime = int(time.time() - SERVER_START_TIME)
         h, r = divmod(uptime, 3600)
         m, s = divmod(r, 60)
 
-        def _get_active_ip():
+        def _ip():
             try:
-                # استخدام with لضمان إغلاق الـ socket فوراً وعدم تعليق البورتات
-                with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s2:
-                    s2.connect(('8.8.8.8', 80))
-                    return s2.getsockname()[0]
+                s2 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                s2.connect(('8.8.8.8',80))
+                ip = s2.getsockname()[0]
+                s2.close()
+                return ip
             except Exception:
                 return '127.0.0.1'
 
         port = int(os.environ.get('PORT', MASTER_CONFIG.get('port') or 3178))
-        
         return {
             'cpu': f'{cpu}%',
             'memory': f'{mem.used/1024**3:.1f} GB / {mem.total/1024**3:.1f} GB',
@@ -685,62 +419,32 @@ def get_system_stats():
             'network_out': f'{net.bytes_sent/1024**2:.1f} MB',
             'uptime': f'{h}h {m}m {s}s',
             'hostname': socket.gethostname(),
-            'ip': _get_active_ip(),
+            'ip': _ip(),
             'port': port,
             'platform': platform.system(),
             'python': sys.version.split()[0],
-            'status': 'Online 🟢'
         }
     except Exception as e:
-        logging.error(f"[SYSTEM STATS] Error fetching stats: {e}")
-        # إرجاع قيم افتراضية لمنع انهيار واجهة HTML في حال حدوث خطأ
-        return {
-            'error': str(e),
-            'cpu': '0%', 'memory': '0 GB / 0 GB', 'memory_percent': 0,
-            'disk': '0 GB / 0 GB', 'disk_percent': 0,
-            'network_in': '0.0 MB', 'network_out': '0.0 MB',
-            'uptime': '0h 0m 0s', 'ip': '127.0.0.1', 
-            'status': 'Error 🔴'
-        }
+        return {'error': str(e)}
 
 # ─────────────────────────────────────────────
-#  12.  Process Management (Secured & Enhanced)
+#  12.  Process Management
 # ─────────────────────────────────────────────
-import zipfile
-import subprocess
-import os
-import sys
-import re
-import logging
-
 running_processes = {}
 file_processes    = {}
 nodejs_processes  = {}
 
 def read_process_output(pid, proc, store=None):
-    """قراءة مخرجات السيرفر (Terminal) بشكل آمن ومنع تعطل الترميز"""
     if store is None:
         store = file_processes
     try:
-        # نقرأ المخرجات سواء كانت نصوص (str) أو بايتات (bytes)
-        for line in iter(proc.stdout.readline, b''):
-            if not line:
-                break
-            
-            # معالجة الترميز لتفادي أخطاء الحروف اللاتينية والعربية
-            if isinstance(line, bytes):
-                line_str = line.decode('utf-8', errors='replace').rstrip('\n')
-            else:
-                line_str = line.rstrip('\n')
-                
-            if line_str and pid in store:
-                store[pid]['output'].append(line_str)
-                # الاحتفاظ بآخر 500 سطر فقط لمنع استنزاف الرام
+        for line in iter(proc.stdout.readline, ''):
+            if line and pid in store:
+                store[pid]['output'].append(line.rstrip('\n'))
                 if len(store[pid]['output']) > 500:
                     store[pid]['output'] = store[pid]['output'][-500:]
-                    
-    except Exception as e:
-        logging.error(f"[PROCESS] Error reading output for PID {pid}: {e}")
+    except Exception:
+        pass
 
 def get_run_command(filepath):
     ext = os.path.splitext(filepath)[1].lower()
@@ -757,129 +461,83 @@ def get_run_command(filepath):
     return f'"{filepath}"'
 
 def extract_and_find_main(zip_path, extract_dir):
-    """استخراج آمن للملفات لمنع ثغرات مسار الضغط (Zip Slip) والبحث عن ملف التشغيل"""
     try:
         with zipfile.ZipFile(zip_path, 'r') as zf:
-            # فحص أمني: منع استخراج ملفات خارج المسار المخصص للمستخدم
-            for member in zf.namelist():
-                member_path = os.path.abspath(os.path.join(extract_dir, member))
-                if not member_path.startswith(os.path.abspath(extract_dir)):
-                    logging.warning(f"[SECURITY] Blocked Zip-Slip attempt in {zip_path}")
-                    continue
-                zf.extract(member, extract_dir)
-                
-        # البحث عن الملف الرئيسي للتشغيل
-        target_names = ['main.py', 'index.js', 'app.py', 'server.js', 'bot.py', 'index.php', 'app.js']
-        for root, dirs, files in os.walk(extract_dir):
-            for name in target_names:
+            zf.extractall(extract_dir)
+        for name in ['main.py','index.js','app.py','server.js','bot.py','index.php','app.js']:
+            for root, dirs, files in os.walk(extract_dir):
                 if name in files:
                     return os.path.join(root, name)
-    except Exception as e:
-        logging.error(f"[ZIP EXTRACT] Error processing {zip_path}: {e}")
+    except Exception:
+        pass
     return None
 
 def auto_install_dependencies(filepath):
-    """أداة التثبيت التلقائي الذكية للمكاتب الناقصة (مع تتبع الأخطاء)"""
     installed, failed = [], []
     try:
         ext = os.path.splitext(filepath)[1].lower()
         if ext != '.py':
-            return {'installed': [], 'failed': []}
-            
+            return {'installed':[], 'failed':[]}
         with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
             src = f.read()
-            
         packages = re.findall(r'^\s*(?:import|from)\s+([a-zA-Z_][a-zA-Z0-9_]*)', src, re.MULTILINE)
-        
         pkg_map = {
-            'telegram': 'python-telegram-bot', 'cv2': 'opencv-python', 'PIL': 'Pillow',
-            'dotenv': 'python-dotenv', 'mysql': 'mysql-connector-python',
-            'psycopg2': 'psycopg2-binary', 'youtube_dl': 'youtube-dl', 'yt_dlp': 'yt-dlp',
+            'telegram':'python-telegram-bot','cv2':'opencv-python','PIL':'Pillow',
+            'dotenv':'python-dotenv','mysql':'mysql-connector-python',
+            'psycopg2':'psycopg2-binary','youtube_dl':'youtube-dl','yt_dlp':'yt-dlp',
         }
-        
-        std = {
-            'os','sys','time','json','re','math','random','datetime','threading',
-            'subprocess','collections','io','typing','abc','flask','requests',
-            'psutil','hashlib','base64','uuid','socket','platform','signal',
-            'warnings','gc','resource','shutil','zipfile','tarfile','secrets',
-            'functools','itertools','string','textwrap','pathlib','glob',
-            'tempfile','contextlib','html','logging','ast'
-        }
-        
+        std = {'os','sys','time','json','re','math','random','datetime','threading',
+               'subprocess','collections','io','typing','abc','flask','requests',
+               'psutil','hashlib','base64','uuid','socket','platform','signal',
+               'warnings','gc','resource','shutil','zipfile','tarfile','secrets',
+               'functools','itertools','string','textwrap','pathlib','glob',
+               'tempfile','contextlib','html','logging','ast'}
         for pkg in set(packages):
             if not pkg or pkg.startswith('.') or pkg in std:
                 continue
             actual = pkg_map.get(pkg, pkg)
             try:
                 __import__(pkg)
-            except ImportError:
+            except Exception:
                 try:
-                    logging.info(f"[AUTO-INSTALL] Attempting to install: {actual}")
-                    r = subprocess.run(
-                        [sys.executable, '-m', 'pip', 'install', '--user', actual],
-                        capture_output=True, text=True, timeout=120
-                    )
-                    if r.returncode == 0:
-                        installed.append(actual)
-                    else:
-                        failed.append(actual)
-                        logging.error(f"[AUTO-INSTALL] Failed to install {actual}:\n{r.stderr}")
-                except Exception as ex:
+                    r = subprocess.run([sys.executable,'-m','pip','install','--user',actual],
+                                       capture_output=True, text=True, timeout=180)
+                    (installed if r.returncode==0 else failed).append(actual)
+                except Exception:
                     failed.append(actual)
-                    logging.error(f"[AUTO-INSTALL] Crash installing {actual}: {ex}")
-                    
-        return {'installed': installed, 'failed': failed}
+        return {'installed':installed,'failed':failed}
     except Exception as e:
-        logging.error(f"[AUTO-INSTALL] Critical error: {e}")
-        return {'installed': installed, 'failed': failed + [str(e)]}
+        return {'installed':installed,'failed':failed+[str(e)]}
 
 # ─────────────────────────────────────────────
-#  13.  Node.js Helpers (Secured & Enhanced)
+#  13.  Node.js Helpers
 # ─────────────────────────────────────────────
-import socket
-import os
-import json
-import time
-import subprocess
-import threading
-import logging
-from datetime import datetime
-
 def find_free_port(start=4000, end=9000):
-    """البحث عن منفذ متاح بطريقة آمنة لتجنب تداخل المنافذ"""
     for p in range(start, end):
         try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                # SO_REUSEADDR يمنع خطأ 'Address already in use' إذا أُغلق المنفذ للتو
-                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                s.bind(('0.0.0.0', p))
-                return p
-        except OSError:
+            s = socket.socket()
+            s.bind(('0.0.0.0', p))
+            s.close()
+            return p
+        except Exception:
             continue
     return start
 
 def get_nodejs_install_commands(project_path, deps_file=None):
-    """توليد أوامر التثبيت بشكل آمن لتجنب ثغرات حقن الأوامر"""
+    """Return install commands list based on deps file (package.json / yarn.lock / custom)."""
     cmds = []
     pkg_json = os.path.join(project_path, 'package.json')
     yarn_lock = os.path.join(project_path, 'yarn.lock')
     custom_deps = os.path.join(project_path, deps_file) if deps_file else None
 
-    if custom_deps and os.path.exists(custom_deps):
+    if custom_deps and deps_file and os.path.exists(custom_deps):
         ext = os.path.splitext(deps_file)[1].lower()
         if ext == '.txt':
-            try:
-                # قراءة الملف عبر بايثون بدلاً من shell لحماية النظام
-                with open(custom_deps, 'r', encoding='utf-8') as f:
-                    packages = f.read().replace('\n', ' ').strip()
-                if packages:
-                    cmds.append(f'npm install {packages}')
-            except Exception as e:
-                logging.error(f"[NODEJS] Error reading deps txt: {e}")
+            cmds.append(f'npm install $(cat "{deps_file}" | tr "\\n" " ")')
         elif ext == '.json':
-            cmds.append('npm install --prefix . --package-lock-only && npm install')
+            cmds.append(f'npm install --prefix . --package-lock-only || npm install')
         else:
-            cmds.append('npm install')
+            cmds.append(f'npm install')
     elif os.path.exists(yarn_lock):
         cmds.append('yarn install --frozen-lockfile')
     elif os.path.exists(pkg_json):
@@ -887,17 +545,23 @@ def get_nodejs_install_commands(project_path, deps_file=None):
     return cmds
 
 def start_nodejs_project(project_path, username, port=None, main_file=None, deps_file=None):
-    """تشغيل مشاريع Node.js في بيئة معزولة وآمنة"""
+    """
+    Start a Node.js project.
+    main_file  — override which .js file to run (e.g. 'server.js', 'src/app.js')
+    deps_file  — override which deps file to install from (e.g. 'package.json', 'requirements.txt')
+    """
+    # ── Install deps ──────────────────────────────────────────────────────
     install_output = ''
     pkg_json = os.path.join(project_path, 'package.json')
     deps_abs = os.path.join(project_path, deps_file) if deps_file else None
 
-    # ── 1. تثبيت الحزم (Dependencies) ─────────────────────────
-    install_cmds = []
-    if deps_abs and os.path.exists(deps_abs):
+    # decide install command
+    if deps_abs and deps_file and os.path.exists(deps_abs):
         install_cmds = get_nodejs_install_commands(project_path, deps_file)
     elif os.path.exists(pkg_json):
         install_cmds = ['npm install']
+    else:
+        install_cmds = []
 
     for ic in install_cmds:
         try:
@@ -905,44 +569,48 @@ def start_nodejs_project(project_path, username, port=None, main_file=None, deps
                                 capture_output=True, text=True, timeout=180)
             install_output += ir.stdout + ir.stderr
         except Exception as e:
-            install_output += f'[Error] Install failed: {str(e)}\n'
+            install_output += f'Install error: {e}\n'
 
-    # ── 2. تحديد أمر التشغيل (Start Command) ───────────────────
+    # ── Determine start command ───────────────────────────────────────────
     start_cmd = None
 
+    # 1. User-provided main file takes priority
     if main_file:
         mf_path = os.path.join(project_path, main_file)
         if os.path.exists(mf_path):
             start_cmd = f'node "{main_file}"'
         else:
-            return {'success': False, 'error': f'Main file not found: {main_file}', 'install_output': install_output}
+            return {'success': False, 'error': f'Main file not found: {main_file}',
+                    'install_output': install_output}
 
+    # 2. package.json scripts
     if not start_cmd and os.path.exists(pkg_json):
         try:
-            with open(pkg_json, 'r', encoding='utf-8') as f:
+            with open(pkg_json) as f:
                 pkg = json.load(f)
             scripts = pkg.get('scripts', {})
-            start_cmd = scripts.get('start') or scripts.get('dev')
+            sc = scripts.get('start') or scripts.get('dev')
+            if sc:
+                start_cmd = sc
         except Exception:
             pass
 
+    # 3. Auto-detect common entry points
     if not start_cmd:
-        for name in ['index.js', 'app.js', 'server.js', 'main.js', 'bot.js']:
+        for name in ['index.js','app.js','server.js','main.js','bot.js']:
             if os.path.exists(os.path.join(project_path, name)):
                 start_cmd = f'node "{name}"'
                 break
 
     if not start_cmd:
+        # Return install commands so user knows what to run
         ic_list = get_nodejs_install_commands(project_path, deps_file)
-        return {
-            'success': False,
-            'error': 'لم يتم العثور على ملف البداية. حدد الملف الرئيسي يدوياً.',
-            'install_commands': ic_list or ['npm install'],
-            'run_command': 'node your_file.js',
-            'install_output': install_output
-        }
+        return {'success': False,
+                'error': 'لم يتم العثور على ملف بداية. حدد الملف الرئيسي يدوياً.',
+                'install_commands': ic_list or ['npm install'],
+                'run_command': 'node your_file.js',
+                'install_output': install_output}
 
-    # ── 3. التشغيل في الخلفية (Background Process) ─────────────
     assigned_port = port or find_free_port()
     env = os.environ.copy()
     env['PORT'] = str(assigned_port)
@@ -952,11 +620,10 @@ def start_nodejs_project(project_path, username, port=None, main_file=None, deps
         kwargs = dict(
             shell=True, cwd=project_path,
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            text=False, bufsize=1, env=env  # text=False ليتوافق مع المعالجة الآمنة للترميز في الجزء 12
+            text=True, bufsize=1, env=env
         )
         if hasattr(os, 'setsid'):
             kwargs['preexec_fn'] = os.setsid
-            
         p = subprocess.Popen(start_cmd, **kwargs)
         nodejs_processes[pid_key] = {
             'process': p, 'username': username,
@@ -965,19 +632,16 @@ def start_nodejs_project(project_path, username, port=None, main_file=None, deps
             'deps_file': deps_file or 'package.json',
             'output': [], 'started': datetime.now().isoformat()
         }
-        
         threading.Thread(target=read_process_output, args=(pid_key, p),
                          kwargs={'store': nodejs_processes}, daemon=True).start()
-                         
         log_activity(username, 'nodejs.start', f'{start_cmd} port={assigned_port}')
-        
         return {'success': True, 'pid': pid_key, 'port': assigned_port,
                 'command': start_cmd, 'install_output': install_output}
     except Exception as e:
         return {'success': False, 'error': str(e), 'install_output': install_output}
 
 def get_nodejs_info(project_path, main_file=None, deps_file=None):
-    """إرجاع أوامر التشغيل والتثبيت دون تنفيذها לעرضها في اللوحة"""
+    """Return install & run commands without actually running anything."""
     pkg_json = os.path.join(project_path, 'package.json')
     yarn_lock = os.path.join(project_path, 'yarn.lock')
 
@@ -985,180 +649,135 @@ def get_nodejs_info(project_path, main_file=None, deps_file=None):
     if deps_file and os.path.exists(os.path.join(project_path, deps_file)):
         if deps_file.endswith('.lock') or 'yarn' in deps_file:
             install_cmd = 'yarn install'
+        else:
+            install_cmd = 'npm install'
     elif os.path.exists(yarn_lock):
         install_cmd = 'yarn install'
 
     run_cmd = f'node "{main_file}"' if main_file else None
-    if not run_cmd and os.path.exists(pkg_json):
-        try:
-            with open(pkg_json, 'r', encoding='utf-8') as f:
-                pkg = json.load(f)
-            if 'start' in pkg.get('scripts', {}) or 'dev' in pkg.get('scripts', {}):
-                run_cmd = 'npm start'
-        except Exception:
-            pass
-            
     if not run_cmd:
-        for name in ['index.js', 'app.js', 'server.js', 'main.js']:
+        if os.path.exists(pkg_json):
+            try:
+                with open(pkg_json) as f:
+                    pkg = json.load(f)
+                sc = pkg.get('scripts',{}).get('start') or pkg.get('scripts',{}).get('dev')
+                if sc: run_cmd = f'npm start'
+            except Exception:
+                pass
+    if not run_cmd:
+        for name in ['index.js','app.js','server.js','main.js']:
             if os.path.exists(os.path.join(project_path, name)):
                 run_cmd = f'node "{name}"'
                 break
-                
     if not run_cmd:
         run_cmd = 'node your_main_file.js'
 
     return {'install_command': install_cmd, 'run_command': run_cmd}
 
 # ─────────────────────────────────────────────
-#  14.  PHP Helpers (Secured & Routing Fixed)
+#  14.  PHP Helpers
 # ─────────────────────────────────────────────
-import os
-import subprocess
-import threading
-import time
-import logging
-from datetime import datetime
-
 _php_servers = {}  # pid_key -> {process, port, path}
 
 def get_php_install_commands(php_root, deps_file=None):
-    """توليد أوامر تثبيت Composer بطريقة آمنة"""
+    """Return PHP install commands based on deps file."""
     composer_json = os.path.join(php_root, 'composer.json')
     composer_lock = os.path.join(php_root, 'composer.lock')
     custom_deps   = os.path.join(php_root, deps_file) if deps_file else None
 
-    if custom_deps and os.path.exists(custom_deps):
+    if custom_deps and deps_file and os.path.exists(custom_deps):
         if 'composer' in deps_file.lower() or deps_file.endswith('.json'):
             if os.path.exists(composer_lock):
                 return ['composer install --no-dev']
             return ['composer install']
         elif deps_file.endswith('.txt'):
-            try:
-                # قراءة الملف برمجياً بدلاً من استخدام cat لمنع ثغرات حقن الأوامر
-                with open(custom_deps, 'r', encoding='utf-8') as f:
-                    packages = f.read().replace('\n', ' ').strip()
-                if packages:
-                    return [f'composer require {packages}']
-            except Exception as e:
-                logging.error(f"[PHP] Error reading deps txt: {e}")
+            return [f'# install each package listed in {deps_file}',
+                    f'cat {deps_file} | xargs -I{{}} composer require {{}}']
     elif os.path.exists(composer_lock):
         return ['composer install --no-dev']
     elif os.path.exists(composer_json):
         return ['composer install']
-    
-    return []
+    return []   # no deps file found
 
 def start_php_server(php_root, username, port=None, main_file=None, deps_file=None):
     """
-    تشغيل خادم PHP الداخلي مع إصلاح مسارات الـ Routing
-    main_file: يمكن أن يكون مجلداً (مثل public) أو ملف توجيه (مثل router.php)
+    Start PHP built-in server.
+    main_file — optional entry point (e.g. 'index.php', 'public/index.php')
+    deps_file — optional composer.json/lock or requirements list
     """
     assigned_port = port or find_free_port(5000)
     install_output = ''
 
-    # ── 1. تثبيت الحزم (Composer) ───────────────────────────────
-    cmds = get_php_install_commands(php_root, deps_file)
+    # ── Install composer deps if available ───────────────────────────────
+    composer_json = os.path.join(php_root, 'composer.json')
+    deps_abs = os.path.join(php_root, deps_file) if deps_file else None
+    if deps_abs and os.path.exists(deps_abs):
+        cmds = get_php_install_commands(php_root, deps_file)
+    elif os.path.exists(composer_json):
+        cmds = ['composer install --no-dev']
+    else:
+        cmds = []
+
     for ic in cmds:
+        if ic.startswith('#'): continue
         try:
             ir = subprocess.run(ic, shell=True, cwd=php_root,
                                 capture_output=True, text=True, timeout=180)
             install_output += ir.stdout + ir.stderr
         except Exception as e:
-            install_output += f'[Error] Install failed: {str(e)}\n'
+            install_output += f'Install error: {e}\n'
 
-    # ── 2. إعداد أمر التشغيل (Routing Logic) ────────────────────
+    # ── Build php -S command ─────────────────────────────────────────────
     php_bin = 'php'
-    doc_root = php_root
-    router = ''
-
-    if main_file:
-        mf_abs = os.path.join(php_root, main_file)
+    router  = main_file if main_file else ''
+    # Validate main_file exists
+    if router:
+        mf_abs = os.path.join(php_root, router)
         if not os.path.exists(mf_abs):
-            return {
-                'success': False, 
-                'error': f'Main file or directory not found: {main_file}',
-                'install_output': install_output,
-                'install_commands': cmds or ['composer install'],
-                'run_command': f'php -S 0.0.0.0:{assigned_port} -t "{doc_root}"'
-            }
-            
-        if os.path.isdir(mf_abs):
-            # إذا كان الملف المحدد عبارة عن مجلد، نجعله هو الـ Document Root
-            doc_root = mf_abs
-        elif os.path.isfile(mf_abs) and main_file.endswith('.php'):
-            # إذا كان ملف PHP، نستخدمه كـ Router Script
-            router = f' "{main_file}"'
+            return {'success': False, 'error': f'Main file not found: {router}',
+                    'install_output': install_output,
+                    'install_commands': cmds or ['composer install'],
+                    'run_command': f'php -S 0.0.0.0:{assigned_port} -t "{php_root}"'}
+
+    if router:
+        cmd = f'{php_bin} -S 0.0.0.0:{assigned_port} -t "{php_root}" "{router}"'
     else:
-        # اكتشاف تلقائي للمجلد public (للتعامل الصحيح مع إطارات العمل مثل Laravel)
-        public_dir = os.path.join(php_root, 'public')
-        if os.path.isdir(public_dir):
-            doc_root = public_dir
+        cmd = f'{php_bin} -S 0.0.0.0:{assigned_port} -t "{php_root}"'
 
-    cmd = f'{php_bin} -S 0.0.0.0:{assigned_port} -t "{doc_root}"{router}'
-
-    # ── 3. تشغيل الخادم ─────────────────────────────────────────
     pid_key = f'{username}_php_{int(time.time())}'
     try:
-        kwargs = dict(
-            shell=True, cwd=php_root,
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            text=False, bufsize=1  # text=False لضمان التوافق مع قراءة المخرجات وتجنب أخطاء الترميز
-        )
+        kwargs = dict(shell=True, cwd=php_root,
+                      stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                      text=True, bufsize=1)
         if hasattr(os, 'setsid'):
             kwargs['preexec_fn'] = os.setsid
-            
         p = subprocess.Popen(cmd, **kwargs)
         _php_servers[pid_key] = {
             'process': p, 'username': username,
             'path': php_root, 'port': assigned_port,
-            'main_file': main_file or '(auto)', 
-            'deps_file': deps_file or 'composer.json',
+            'main_file': router or '(auto)', 'deps_file': deps_file or 'composer.json',
             'output': [], 'install_output': install_output,
             'started': datetime.now().isoformat()
         }
-        
         threading.Thread(target=read_process_output, args=(pid_key, p),
                          kwargs={'store': _php_servers}, daemon=True).start()
-                         
         log_activity(username, 'php.start', f'{cmd} port={assigned_port}')
-        
         return {'success': True, 'pid': pid_key, 'port': assigned_port,
                 'command': cmd, 'install_output': install_output}
     except Exception as e:
         return {'success': False, 'error': str(e), 'install_output': install_output}
 
 def get_php_info(php_root, main_file=None, deps_file=None):
-    """إرجاع أوامر التشغيل دون تنفيذها לעرضها في الواجهة"""
+    """Return install & run commands without running."""
     cmds = get_php_install_commands(php_root, deps_file)
-    doc_root = php_root
-    router = ''
-    
-    if main_file:
-        mf_abs = os.path.join(php_root, main_file)
-        if os.path.isdir(mf_abs):
-            doc_root = mf_abs
-        elif os.path.isfile(mf_abs) and main_file.endswith('.php'):
-            router = f' "{main_file}"'
-    else:
-        if os.path.isdir(os.path.join(php_root, 'public')):
-            doc_root = os.path.join(php_root, 'public')
-            
-    run_cmd = f'php -S 0.0.0.0:PORT -t "{doc_root}"{router}'
-    return {
-        'install_commands': cmds or ['composer install (if needed)'],
-        'run_command': run_cmd
-    }
+    router = f' "{main_file}"' if main_file else ''
+    run_cmd = f'php -S 0.0.0.0:PORT -t "{php_root}"{router}'
+    return {'install_commands': cmds or ['composer install (if needed)'],
+            'run_command': run_cmd}
 
 # ─────────────────────────────────────────────
-#  15.  ZIP Extract Helpers & Security Scanners
+#  15.  ZIP Extract Helpers
 # ─────────────────────────────────────────────
-import re
-import os
-import zipfile
-import tarfile
-import subprocess
-import logging
-
 ALLOWED_EXTENSIONS = {
     'py','js','ts','jsx','tsx','json','yaml','yml','toml','cfg','ini',
     'txt','md','html','htm','css','scss','sass','less',
@@ -1172,57 +791,67 @@ ALLOWED_EXTENSIONS = {
     'woff','woff2','ttf','eot',
 }
 
-BLOCKED_EXTENSIONS = {
-    'exe','com','scr','vbs','bat','cmd','ps1','msi','dll','sys',
-    'pif','application','gadget','hta','cpl','msc','jar','ws','wsf','wsh'
-}
+BLOCKED_EXTENSIONS = {'exe','com','scr','vbs','bat','cmd','ps1','msi','dll','sys',
+                      'pif','application','gadget','hta','cpl','msc','jar','ws','wsf','wsh'}
 
 # ─── Dangerous code patterns — comprehensive threat detection ───────────────
 DANGEROUS_PATTERNS = [
+    # ── Telegram file-theft bots (matches main__3_.py style) ──
     (r'api\.telegram\.org/bot[A-Za-z0-9:_-]{20,}', '⚠️ Telegram bot token hardcoded in file'),
     (r'bot\.send_document\s*\(|sendDocument\s*\(', '⚠️ Telegram file-send function (exfiltration risk)'),
     (r'bot\.send_message\s*\(.*ADMIN_ID|sendMessage.*chat_id', '⚠️ Telegram C2 messaging pattern'),
     (r'telebot\s*\.\s*TeleBot\s*\(|telegram\.ext.*Application', '⚠️ Telegram bot library initialised — potential C2'),
+    # ── Mass file harvesting & ZIP-bomb to Telegram (file-theft bot pattern) ──
     (r'os\.walk\s*\(.*\).*\.py|get_all_py_files|scan_directory.*py', '🚨 Mass .py file harvesting pattern'),
     (r'zipfile\.ZipFile.*os\.walk|ZipFile.*zipf\.write.*os\.walk', '🚨 Mass zip-and-send exfiltration'),
     (r'backup_all|python_backup|full_python_backup|zip_buffer.*BytesIO.*ZipFile', '🚨 Backup-and-send pattern'),
     (r'scan_current|scan_home|scan_root|scan_custom|scan_directory', '🚨 File system scanning bot pattern'),
     (r'send_document.*chat\.id.*zip_buffer|send_document.*message\.chat', '🚨 Direct file exfil via Telegram'),
     (r'find_config|config\*\.py|settings\*\.json|\*\.env.*os\.walk', '🚨 Config/secret file hunting pattern'),
+    # ── Remote command execution / RAT ──
     (r'exec\s*\(base64\.b64decode', '🚨 Base64-encoded exec (obfuscated payload)'),
     (r'__import__\s*\(\s*["\']os["\']\s*\)\.system', '🚨 Dynamic os.system call'),
     (r'socket\.connect.*\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}.*(?:4444|1337|9999|31337)', '🚨 Raw reverse-shell socket'),
     (r'Popen.*shell=True.*PIPE.*stdin|popen.*|.*PIPE.*communicate', '⚠️ Shell injection with pipe'),
     (r'eval\s*\(\s*(?:compile|input|request)', '🚨 Dynamic eval with user/net input'),
+    # ── Credential & sensitive file access ──
     (r'/etc/passwd|/etc/shadow|\.ssh/id_rsa|\.bash_history|\.aws/credentials', '🚨 Sensitive system file access'),
     (r'SECRET_KEY\s*=\s*["\'][^"\']{10,}|DATABASE_URL\s*=\s*["\']|API_KEY\s*=\s*["\'][A-Za-z0-9]{20,}', '⚠️ Hardcoded secret/credential'),
     (r'ipapi\.co|ip-api\.com|checkip\.amazonaws|api\.ipify', '⚠️ IP geolocation/fingerprinting call'),
+    # ── Web shell patterns ──
     (r'system\s*\(\s*\$_(?:GET|POST|REQUEST)|passthru\s*\(\s*\$_', '🚨 PHP web shell pattern'),
     (r'eval\s*\(\s*base64_decode\s*\(\s*\$_|eval\s*\(\s*gzinflate', '🚨 PHP obfuscated web shell'),
     (r'<\?php.*system\s*\(|<\?php.*exec\s*\(', '🚨 PHP command execution'),
+    # ── Process/system abuse ──
     (r'subprocess\.getoutput\s*\(\s*["\']whoami|subprocess.*getoutput.*id\b', '⚠️ whoami/id system recon'),
     (r'security_dump|backup_and_send|data_exfil|steal_files', '🚨 Known malware function name'),
     (r'reverse_shell|rev_shell|bind_shell|meterpreter', '🚨 Known shell payload keyword'),
 ]
 
+# ── Extra check: file-theft bot fingerprint (structural, not just regex) ────
 FILE_THEFT_BOT_SIGNATURES = [
+    # matches bots with ALL THREE: TeleBot init + os.walk + send_document
     {'name': '🚨 File-theft Telegram bot (full fingerprint)',
      'require_all': [r'TeleBot\s*\(|telegram\.Bot\s*\(', r'os\.walk\s*\(', r'send_document|sendDocument']},
+    # matches bots scanning root/home directories
     {'name': '🚨 System directory scanner bot',
      'require_all': [r'TeleBot\s*\(|telegram\.Bot\s*\(', r"['\"](?:/home|/var|/opt|/etc)['\"]", r'os\.walk\s*\(']},
 ]
 
 def scan_file_content(filepath):
-    """Deep-scan uploaded file for malicious patterns."""
+    """
+    Deep-scan uploaded file for malicious patterns.
+    Returns list of human-readable threat descriptions found.
+    """
     threats = []
     try:
         ext = os.path.splitext(filepath)[1].lower().lstrip('.')
         if ext not in ('py','js','php','sh','bash','rb','ts','jsx','tsx','txt','json','html','htm'):
             return []
-            
         with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
             content = f.read(500_000)   # cap at 500 KB
 
+        # ── Pattern-based scan ──
         for pattern, desc in DANGEROUS_PATTERNS:
             try:
                 if re.search(pattern, content, re.IGNORECASE | re.DOTALL):
@@ -1230,74 +859,56 @@ def scan_file_content(filepath):
             except re.error:
                 pass
 
+        # ── Structural fingerprint scan (multi-pattern AND logic) ──
         for sig in FILE_THEFT_BOT_SIGNATURES:
             if all(re.search(p, content, re.IGNORECASE | re.DOTALL) for p in sig['require_all']):
                 if sig['name'] not in threats:
                     threats.append(sig['name'])
 
-    except Exception as e:
-        logging.error(f"[SCAN ERROR] Failed to scan {filepath}: {e}")
-        
+    except Exception:
+        pass
     return threats
-
-MAX_EXTRACT_SIZE = 500 * 1024 * 1024  # أقصى حجم لفك الضغط في العملية الواحدة: 500 ميجا
+MAX_EXTRACT_SIZE = 500 * 1024 * 1024  # 500 MB
 
 def safe_extract(archive_path, dest_dir, username):
-    """فك الضغط بشكل آمن مع فحص المساحة المسموحة للمستخدم وحظر الملفات الممنوعة"""
+    """Safely extract ZIP/TAR/RAR archives"""
     os.makedirs(dest_dir, exist_ok=True)
     if not is_path_allowed(username, dest_dir):
         return {'success': False, 'error': 'Forbidden destination'}
     
     ext = os.path.splitext(archive_path)[1].lower()
     extracted = []
+    total_size = 0
     
     try:
         if ext == '.zip':
             with zipfile.ZipFile(archive_path, 'r') as zf:
-                # 1. التحقق من إجمالي الحجم قبل فك الضغط لضمان عدم تخطي خطة المستخدم
-                uncompressed_size = sum(info.file_size for info in zf.infolist())
-                if uncompressed_size > MAX_EXTRACT_SIZE:
-                    return {'success': False, 'error': 'Archive too large (>500 MB)'}
-                if not can_user_upload(username, uncompressed_size):
-                    return {'success': False, 'error': 'Not enough storage space in your plan to extract this archive.'}
-
                 for info in zf.infolist():
-                    # 2. منع استخراج الملفات ذات الامتدادات المحظورة من داخل الـ ZIP
-                    file_ext = os.path.splitext(info.filename)[1].lower().lstrip('.')
-                    if file_ext in BLOCKED_EXTENSIONS:
-                        logging.warning(f"[SECURITY] Blocked extracting {info.filename}")
-                        continue
-
+                    if total_size > MAX_EXTRACT_SIZE:
+                        return {'success': False, 'error': 'Archive too large (>500 MB)'}
+                    # path traversal protection
                     target = os.path.realpath(os.path.join(dest_dir, info.filename))
                     if not target.startswith(os.path.realpath(dest_dir)):
                         continue
                     zf.extract(info, dest_dir)
+                    total_size += info.file_size
                     extracted.append(info.filename)
         
         elif ext in ('.tar','.gz','.bz2','.tgz') or archive_path.endswith('.tar.gz'):
             with tarfile.open(archive_path, 'r:*') as tf:
-                members = tf.getmembers()
-                uncompressed_size = sum(m.size for m in members)
-                
-                if uncompressed_size > MAX_EXTRACT_SIZE:
-                    return {'success': False, 'error': 'Archive too large (>500 MB)'}
-                if not can_user_upload(username, uncompressed_size):
-                    return {'success': False, 'error': 'Not enough storage space in your plan.'}
-
-                for member in members:
-                    file_ext = os.path.splitext(member.name)[1].lower().lstrip('.')
-                    if file_ext in BLOCKED_EXTENSIONS:
-                        continue
-
+                for member in tf.getmembers():
+                    if total_size > MAX_EXTRACT_SIZE:
+                        return {'success': False, 'error': 'Archive too large'}
                     target = os.path.realpath(os.path.join(dest_dir, member.name))
                     if not target.startswith(os.path.realpath(dest_dir)):
                         continue
                     tf.extract(member, dest_dir)
+                    total_size += member.size
                     extracted.append(member.name)
         
         else:
+            # try unrar if available
             try:
-                # لا يمكننا التحقق من الحجم المسبق لـ unrar بسهولة، لكن يمكننا تقييد العملية
                 r = subprocess.run(['unrar', 'x', '-y', archive_path, dest_dir],
                                    capture_output=True, text=True, timeout=60)
                 if r.returncode == 0:
@@ -1314,126 +925,51 @@ def safe_extract(archive_path, dest_dir, username):
         return {'success': False, 'error': str(e)}
 
 # ─────────────────────────────────────────────
-#  16.  Decorators (Secured & Session Validated)
+#  16.  Decorators
 # ─────────────────────────────────────────────
-from functools import wraps
-from flask import session, request, jsonify, redirect
-
 def login_required(f):
     @wraps(f)
     def w(*a, **kw):
-        # 1. التحقق من وجود الجلسة واسم المستخدم
-        if 'logged_in' not in session or not session.get('username'):
+        if 'logged_in' not in session:
             if request.path.startswith('/api/'):
-                return jsonify({'success': False, 'error': 'Session expired or invalid'}), 401
+                return jsonify({'success':False,'error':'Session expired'}), 401
             return redirect('/login')
-            
-        # 2. التحقق الحي المتقدم: هل الحساب ما زال فعالاً؟ (لم يتم حذفه أو انتهاء خطته)
-        username = session.get('username')
-        if not can_user_login(username):
-            # تدمير الجلسة فوراً إذا كان الحساب موقوفاً أو منتهياً
-            session.clear()
-            if request.path.startswith('/api/'):
-                return jsonify({'success': False, 'error': 'Account expired, disabled or max sessions reached'}), 403
-            return redirect('/login?error=account_expired')
-            
         return f(*a, **kw)
     return w
 
 def master_required(f):
     @wraps(f)
     def w(*a, **kw):
-        username = session.get('username')
-        # حماية مسارات المالك (DEV RIKO) ومنع أي مستخدم عادي من الوصول إليها
-        if username != MASTER_USERNAME:
-            if username:
-                # تسجيل محاولة اختراق أو تطفل إذا حاول مستخدم عادي الدخول لمسار المالك
-                log_activity(username, 'security.warning', f'Unauthorized access attempt to master route: {request.path}')
-            return jsonify({'success': False, 'error': 'Access Denied. Master only'}), 403
+        if session.get('username') != MASTER_USERNAME:
+            return jsonify({'success':False,'error':'Master only'}), 403
         return f(*a, **kw)
     return w
 
 # ─────────────────────────────────────────────
-#  17.  Maintenance Template (DEV RIKO Edition)
+#  17.  Maintenance Template
 # ─────────────────────────────────────────────
 MAINTENANCE_TMPL = r'''
-<!DOCTYPE html>
-<html lang="ar" dir="auto">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>وضع الصيانة — DEV RIKO</title>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        * { margin:0; padding:0; box-sizing:border-box; font-family:'Tajawal', sans-serif; }
-        body { 
-            background: #090b10; 
-            color: #c9d1d9; 
-            min-height: 100vh; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            overflow: hidden;
-        }
-        .card { 
-            text-align: center; 
-            padding: 50px 40px; 
-            background: #11151c; 
-            border: 1px solid #232a35; 
-            border-radius: 16px; 
-            max-width: 480px; 
-            width: 92%; 
-            box-shadow: 0 0 25px rgba(124, 92, 252, 0.15);
-            position: relative;
-        }
-        /* تأثير النبض الاحترافي بدلاً من الدوران المزعج */
-        .icon { 
-            font-size: 72px; 
-            margin-bottom: 20px; 
-            animation: pulse 2s ease-in-out infinite;
-        }
-        @keyframes pulse { 
-            0% { transform: scale(1); filter: drop-shadow(0 0 5px rgba(124,92,252,0.5)); } 
-            50% { transform: scale(1.1); filter: drop-shadow(0 0 15px rgba(124,92,252,0.8)); } 
-            100% { transform: scale(1); filter: drop-shadow(0 0 5px rgba(124,92,252,0.5)); } 
-        }
-        h1 { font-size: 28px; color: #fff; margin-bottom: 8px; font-weight: 700; }
-        .sub { 
-            color: #7c5cfc; 
-            font-size: 14px; 
-            letter-spacing: 2px; 
-            text-transform: uppercase; 
-            margin-bottom: 25px; 
-            font-weight: bold; 
-        }
-        .msg { 
-            background: #0d1117; 
-            border: 1px solid #232a35; 
-            border-right: 4px solid #7c5cfc; /* توافق مع اتجاه اليمين */
-            padding: 18px; 
-            border-radius: 8px; 
-            color: #a3abb6; 
-            line-height: 1.7; 
-            font-size: 16px;
-        }
-        .foot { margin-top: 25px; font-size: 13px; color: #484f58; }
-        .foot a { color: #7c5cfc; text-decoration: none; font-weight: bold; transition: 0.3s; }
-        .foot a:hover { color: #fff; text-shadow: 0 0 8px #7c5cfc; }
-    </style>
-</head>
-<body>
-    <div class="card">
-        <div class="icon">🛠️</div>
-        <h1>النظام تحت التحديث</h1>
-        <div class="sub">DEV RIKO PANEL</div>
-        <div class="msg">{{ message }}</div>
-        <div class="foot">
-            جميع الحقوق محفوظة © DEV RIKO — المطور 
-            <a href="https://t.me/SHBH_S1" target="_blank">@SHBH_S1</a>
-        </div>
-    </div>
-</body>
-</html>
+<!DOCTYPE html><html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Maintenance — SERVER HUB</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Inter',sans-serif}
+body{background:#0b0f17;color:#c9d1d9;min-height:100vh;display:flex;align-items:center;justify-content:center}
+.card{text-align:center;padding:50px 40px;background:#161b22;border:1px solid #30363d;border-radius:16px;max-width:480px;width:92%}
+.icon{font-size:72px;margin-bottom:20px;animation:spin 4s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+h1{font-size:26px;color:#fff;margin-bottom:8px}
+.sub{color:#7c5cfc;font-size:12px;letter-spacing:3px;text-transform:uppercase;margin-bottom:20px}
+.msg{background:#0d1117;border:1px solid #30363d;border-left:4px solid #7c5cfc;padding:16px;border-radius:8px;color:#8b949e;line-height:1.7}
+.foot{margin-top:20px;font-size:11px;color:#484f58}
+</style></head>
+<body><div class="card">
+<div class="icon">⚙️</div>
+<h1>Under Maintenance</h1>
+<div class="sub">SERVER HUB</div>
+<div class="msg">{{ message }}</div>
+<div class="foot">All rights reserved © SERVER HUB — By SHBH_S1</div>
+</div></body></html>
 '''
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1681,7 +1217,7 @@ body::before{
         {% endif %}
       </form>
 
-      <div class="foot">SERVER HUB &copy; 2025 &nbsp;·&nbsp; By <a href="https://t.me/I_tt_6" target="_blank">@I_tt_6</a></div>
+      <div class="foot">SERVER HUB &copy; 2025 &nbsp;·&nbsp; By <a href="https://t.me/I_tt_6" target="_blank">SHBH_S1</a></div>
     </div>
 
   </div>
@@ -1723,156 +1259,159 @@ document.querySelectorAll('.tab').forEach(t=>{if(t.dataset.f==='register')t.clic
 '''
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  19.  MAIN DASHBOARD TEMPLATE  (DEV RIKO PANEL)
+#  19.  MAIN DASHBOARD TEMPLATE  (SERVER HUB)
 # ─────────────────────────────────────────────────────────────────────────────
 def get_html_template(is_master, username=None):
     extra_tabs = ''
     if is_master:
         extra_tabs = '''
-        <div class="tab-item" data-tab="ai" style="color:#a78bfa;font-weight:600">🤖 الذكاء الاصطناعي</div>
-        <div class="tab-item" data-tab="users">👥 المستخدمين</div>
+        <div class="tab-item" data-tab="ai" style="color:#a78bfa;font-weight:600">🤖 AI</div>
+        <div class="tab-item" data-tab="users">👥 Users</div>
         <div class="tab-item" data-tab="nodejs">🟢 Node.js</div>
         <div class="tab-item" data-tab="php">🐘 PHP</div>
-        <div class="tab-item" data-tab="backups">💾 النسخ الاحتياطية</div>
-        <div class="tab-item" data-tab="network">🌐 الشبكة والمنافذ</div>
-        <div class="tab-item" data-tab="startup">🚀 بدء التشغيل</div>
-        <div class="tab-item" data-tab="settings">⚙️ الإعدادات</div>
-        <div class="tab-item" data-tab="activity">📋 سجل الأنشطة</div>
-        <div class="tab-item" data-tab="owner" style="color:#7c5cfc;font-weight:700">👑 تحكم المالك</div>
+        <div class="tab-item" data-tab="backups">💾 Backups</div>
+        <div class="tab-item" data-tab="network">🌐 Network</div>
+        <div class="tab-item" data-tab="startup">🚀 Startup</div>
+        <div class="tab-item" data-tab="settings">⚙️ Settings</div>
+        <div class="tab-item" data-tab="activity">📋 Activity</div>
+        <div class="tab-item" data-tab="owner" style="color:#7c5cfc;font-weight:700">👑 Owner</div>
         '''
     else:
         extra_tabs = '''
-        <div class="tab-item" data-tab="ai" style="color:#a78bfa;font-weight:600">🤖 الذكاء الاصطناعي</div>
+        <div class="tab-item" data-tab="ai" style="color:#a78bfa;font-weight:600">🤖 AI</div>
         <div class="tab-item" data-tab="nodejs">🟢 Node.js</div>
         <div class="tab-item" data-tab="php">🐘 PHP</div>
-        <div class="tab-item" data-tab="settings">⚙️ الإعدادات</div>
-        <div class="tab-item" data-tab="activity">📋 سجل الأنشطة</div>
+        <div class="tab-item" data-tab="settings">⚙️ Settings</div>
+        <div class="tab-item" data-tab="activity">📋 Activity</div>
         '''
 
     owner_panel_html = ''
     if is_master:
         owner_panel_html = r'''
+<!-- ===== OWNER TAB ===== -->
 <div class="tab-content" id="tab-owner">
+  <!-- Stats Row -->
   <div class="stats4">
-    <div class="stat4 purple"><div class="s4lbl">إجمالي المستخدمين</div><div class="s4val" id="ow-users">—</div></div>
-    <div class="stat4 blue"><div class="s4lbl">السيرفرات المتصلة</div><div class="s4val" id="ow-servers">—</div></div>
-    <div class="stat4 green"><div class="s4lbl">البوتات النشطة</div><div class="s4val" id="ow-bots">—</div></div>
-    <div class="stat4 orange"><div class="s4lbl">ملفات الـ ZIP</div><div class="s4val" id="ow-zips">—</div></div>
+    <div class="stat4 purple"><div class="s4lbl">Total Users</div><div class="s4val" id="ow-users">—</div></div>
+    <div class="stat4 blue"><div class="s4lbl">Servers</div><div class="s4val" id="ow-servers">—</div></div>
+    <div class="stat4 green"><div class="s4lbl">Active Bots</div><div class="s4val" id="ow-bots">—</div></div>
+    <div class="stat4 orange"><div class="s4lbl">ZIP Files</div><div class="s4val" id="ow-zips">—</div></div>
   </div>
 
+  <!-- Maintenance -->
   <div class="section-card">
-    <div class="section-head">🔧 وضع الصيانة (Maintenance Mode)</div>
+    <div class="section-head">🔧 Maintenance Mode</div>
     <div class="section-body">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
         <label class="toggle-switch">
           <input type="checkbox" id="maint-toggle-chk" onchange="toggleMaintenance()">
           <span class="slider"></span>
         </label>
-        <span style="color:#8b949e;font-size:13px;font-weight:600">تفعيل وضع الصيانة وإيقاف اللوحة للمستخدمين</span>
+        <span style="color:#8b949e;font-size:13px">Enable Maintenance Mode</span>
       </div>
-      <div class="field-block">
-        <label>رسالة الصيانة</label>
-        <textarea id="maint-msg" rows="2" placeholder="عذراً، اللوحة تحت الصيانة حالياً..." style="width:100%;padding:12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;resize:vertical;outline:none;" dir="auto"></textarea>
+      <div class="field-block"><label>Maintenance Message</label>
+        <textarea id="maint-msg" rows="2" style="width:100%;padding:10px;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;font-size:13px;resize:vertical"></textarea>
       </div>
-      <div class="row-end">
-        <button class="btn-action" onclick="saveMaintMsg()">حفظ الرسالة</button>
-      </div>
+      <button class="btn-action" onclick="saveMaintMsg()">Save Message</button>
     </div>
   </div>
 
+  <!-- Telegram Bot -->
   <div class="section-card">
-    <div class="section-head">🤖 إعدادات بوت التيليجرام (DEV RIKO BOT)</div>
+    <div class="section-head">🤖 Telegram Bot Integration</div>
     <div class="section-body">
       <div id="bot-status-badge" style="margin-bottom:12px"></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-        <div class="field-block"><label>توكن البوت (Bot Token)</label><input id="tg-token" type="password" placeholder="1234567890:AAF..." dir="ltr"></div>
-        <div class="field-block"><label>معرف المالك (Owner ID)</label><input id="tg-ownerid" placeholder="123456789" dir="ltr"></div>
-      </div>
-      <div id="bot-link-status" style="color:#8b949e;font-size:12px;margin-bottom:12px;font-weight:600"></div>
+      <div class="field-block"><label>Bot Token</label><input id="tg-token" type="password" placeholder="1234567890:AAF..."></div>
+      <div class="field-block"><label>Owner Telegram ID</label><input id="tg-ownerid" placeholder="123456789"></div>
+      <div id="bot-link-status" style="color:#8b949e;font-size:12px;margin-bottom:8px"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-action" onclick="linkBot()">🔗 ربط البوت</button>
-        <button class="btn-action danger" onclick="unlinkBot()">🔓 إلغاء الربط</button>
+        <button class="btn-action" onclick="linkBot()">🔗 Link Bot</button>
+        <button class="btn-action gray" onclick="unlinkBot()">🔓 Unlink</button>
       </div>
-      
-      <div id="bot-control-panel" style="display:none;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
-        <div class="section-head" style="margin-bottom:12px;background:transparent;padding:0;border:none">لوحة تحكم البوت</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-          <button class="btn-action green" onclick="botAction('start')">▶ تشغيل البوت</button>
-          <button class="btn-action" onclick="botAction('restart')">↺ إعادة التشغيل</button>
-          <button class="btn-action danger" onclick="botAction('stop')">■ إيقاف</button>
-          <button class="btn-action gray" onclick="refreshBotStats()">🔄 تحديث الحالة</button>
+      <div id="bot-control-panel" style="display:none;margin-top:16px">
+        <div class="section-head" style="margin-bottom:8px">Bot Control</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+          <button class="btn-action green" onclick="botAction('start')">▶ Start</button>
+          <button class="btn-action" onclick="botAction('restart')">↺ Restart</button>
+          <button class="btn-action danger" onclick="botAction('stop')">■ Stop</button>
+          <button class="btn-action gray" onclick="refreshBotStats()">🔄 Refresh</button>
         </div>
-        <div class="console-box" id="bot-console" style="height:140px;background:#010409" dir="ltr"></div>
-        <div class="cmd-input" style="margin-top:10px" dir="ltr">
-          <span class="prompt" style="color:var(--accent)">$</span>
-          <input id="bot-cmd-input" placeholder="Send command to bot..." onkeydown="if(event.key==='Enter')sendBotCmd()">
+        <div class="console-box" id="bot-console" style="height:120px"></div>
+        <div class="cmd-input" style="margin-top:8px">
+          <span class="prompt">$</span>
+          <input id="bot-cmd-input" placeholder="Send command..." onkeydown="if(event.key==='Enter')sendBotCmd()">
         </div>
       </div>
     </div>
   </div>
-'''
 
+  <!-- Panel Settings -->
   <div class="section-card">
-    <div class="section-head">⚙️ إعدادات اللوحة</div>
+    <div class="section-head">⚙️ Panel Settings</div>
     <div class="section-body">
-      <div class="field-block"><label>اسم اللوحة</label><input id="panel-name-inp" placeholder="DEV RIKO PANEL" dir="auto"></div>
-      <div class="field-block"><label>رسالة الترحيب</label><input id="panel-welcome-inp" placeholder="مرحباً بك في الاستضافة!" dir="auto"></div>
-      <button class="btn-action" onclick="savePanelSettings()">حفظ الإعدادات</button>
+      <div class="field-block"><label>Panel Name</label><input id="panel-name-inp" placeholder="SERVER HUB"></div>
+      <div class="field-block"><label>Welcome Message</label><input id="panel-welcome-inp" placeholder="Welcome!"></div>
+      <button class="btn-action" onclick="savePanelSettings()">Save Settings</button>
     </div>
   </div>
 
+  <!-- Announcements -->
   <div class="section-card">
-    <div class="section-head">📢 الإعلانات</div>
+    <div class="section-head">📢 Announcements</div>
     <div class="section-body">
-      <div class="field-block"><label>إعلان جديد</label><input id="ann-txt" placeholder="اكتب إعلانك هنا..." dir="auto"></div>
+      <div class="field-block"><label>New Announcement</label><input id="ann-txt" placeholder="Type announcement..."></div>
       <div style="display:flex;gap:8px;margin-bottom:12px">
-        <button class="btn-action" onclick="addAnnouncement()">إضافة</button>
-        <button class="btn-action gray" onclick="ownerBroadcast()">📡 بث للمستخدمين</button>
+        <button class="btn-action" onclick="addAnnouncement()">Add</button>
+        <button class="btn-action gray" onclick="ownerBroadcast()">📡 Broadcast</button>
       </div>
       <div id="ann-list"></div>
     </div>
   </div>
 
+  <!-- ZIP Files -->
   <div class="section-card">
-    <div class="section-head">📦 ملفات مضغوطة (ZIP)</div>
+    <div class="section-head">📦 User ZIP Files</div>
     <div class="section-body">
       <div style="display:flex;gap:8px;margin-bottom:10px">
-        <button class="btn-action" onclick="loadOwnerZips()">🔄 تحديث</button>
-        <button class="btn-action green" onclick="downloadAllZips()">⬇ تحميل الكل</button>
+        <button class="btn-action" onclick="loadOwnerZips()">🔄 Refresh</button>
+        <button class="btn-action green" onclick="downloadAllZips()">⬇ Download All</button>
       </div>
       <div id="owner-zip-list"></div>
     </div>
   </div>
 
+  <!-- Pending Registrations -->
   <div class="section-card">
-    <div class="section-head">⏳ طلبات التسجيل المعلقة</div>
+    <div class="section-head">⏳ Pending Account Approvals</div>
     <div class="section-body">
-      <button class="btn-action" onclick="loadPendingUsers()" style="margin-bottom:10px">🔄 تحديث القائمة</button>
+      <button class="btn-action" onclick="loadPendingUsers()" style="margin-bottom:10px">🔄 Refresh</button>
       <div id="pending-users-list"></div>
     </div>
   </div>
 
+  <!-- Security Alerts -->
   <div class="section-card" style="border-color:rgba(248,81,73,.4)">
-    <div class="section-head" style="color:#f85149">🛡️ الإنذارات الأمنية — ملفات مشبوهة</div>
+    <div class="section-head" style="color:#f85149">🛡️ Security Alerts — ملفات مشبوهة</div>
     <div class="section-body">
       <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
-        <button class="btn-action gray" onclick="loadSecurityAlerts()">🔄 تحديث التنبيهات</button>
-        <button class="btn-action danger" onclick="clearSecurityAlerts()">🗑 مسح الكل</button>
+        <button class="btn-action gray" onclick="loadSecurityAlerts()">🔄 Refresh</button>
+        <button class="btn-action danger" onclick="clearSecurityAlerts()">🗑 Clear All</button>
       </div>
       <div id="security-alerts-list">
-        <div style="color:var(--text3);padding:10px;text-align:center">اضغط تحديث لتحميل التنبيهات</div>
+        <div style="color:var(--text3);padding:10px;text-align:center">اضغط Refresh لتحميل التنبيهات</div>
       </div>
     </div>
   </div>
 
+  <!-- Danger Zone -->
   <div class="section-card" style="border-color:#f85149">
-    <div class="section-head" style="color:#f85149">⚠️ منطقة الخطر</div>
+    <div class="section-head" style="color:#f85149">⚠️ Danger Zone</div>
     <div class="section-body">
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-action danger" onclick="ownerAction('clear_all_logs')">🗑 مسح السجلات</button>
-        <button class="btn-action danger" onclick="ownerAction('kick_all_users')">👢 طرد جميع المستخدمين</button>
-        <button class="btn-action danger" onclick="ownerAction('reset_stats')">📊 تصفير الإحصائيات</button>
-        <button class="btn-action gray" onclick="ownerAction('restart_panel')">🔄 إعادة تشغيل اللوحة</button>
+        <button class="btn-action danger" onclick="ownerAction('clear_all_logs')">🗑 Clear All Logs</button>
+        <button class="btn-action danger" onclick="ownerAction('kick_all_users')">👢 Kick All Users</button>
+        <button class="btn-action danger" onclick="ownerAction('reset_stats')">📊 Reset Stats</button>
+        <button class="btn-action gray" onclick="ownerAction('restart_panel')">🔄 Restart Panel</button>
       </div>
     </div>
   </div>
@@ -1881,1020 +1420,982 @@ def get_html_template(is_master, username=None):
 
     return r'''
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DEV RIKO — لوحة التحكم</title>
-<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<title>SERVER HUB — Control Panel</title>
 <style>
 :root{
-  --bg:#090b10;--bg2:#11151c;--bg3:#161b22;--bg4:#1e242e;
-  --border:#232a35;--border2:#30363d;
-  --accent:#7c5cfc;--accent2:#00bfff;--accent3:#8e44ad;
+  --bg:#080b12;--bg2:#0c1018;--bg3:#111620;--bg4:#161d28;
+  --border:#1e2738;--border2:#2a3548;
+  --accent:#c0392b;--accent2:#e74c3c;--accent3:#8e44ad;
   --neon:#ff2d55;--neon2:#a855f7;
-  --green:#3fb950;--red:#f85149;--yellow:#d29922;--orange:#f0883e;
-  --text:#e6edf3;--text2:#8b949e;--text3:#484f58;
-  --sidebar-width: 260px;
+  --green:#27ae60;--red:#e74c3c;--yellow:#f39c12;--orange:#e67e22;
+  --text:#eaf0fb;--text2:#8899b0;--text3:#3d5068;
 }
-*{margin:0;padding:0;box-sizing:border-box;font-family:'Tajawal',sans-serif}
-html,body{background:var(--bg);color:var(--text);height:100vh;overflow:hidden;}
-
-body::before{
-  content:'';position:absolute;inset:0;
-  background: url('https://i.ibb.co/60Zvqk5L/photo.jpg') center/cover no-repeat fixed;
-  opacity: 0.04; pointer-events:none; z-index:0;
-}
-
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Inter','Segoe UI',sans-serif}
+html,body{background:var(--bg);color:var(--text);min-height:100vh}
 ::-webkit-scrollbar{width:6px;height:6px}
-::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-track{background:var(--bg2)}
 ::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px}
-'''
 
-/* ── APP LAYOUT (توزيع الشاشة لدعم الشريط الجانبي) ── */
-.app-layout {
-  display: flex; height: 100vh; width: 100vw; position:relative; z-index:1;
+/* ── TOPBAR ── */
+.topbar{
+  background:var(--bg2);border-bottom:1px solid var(--border);
+  padding:0 20px;height:56px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;
+  box-shadow:0 2px 12px rgba(0,0,0,.4);
 }
-
-/* ── SIDEBAR (بديل الـ TOPBAR والـ TABS) ── */
-.sidebar {
-  width: var(--sidebar-width); background: var(--bg2); border-left: 1px solid var(--border);
-  display: flex; flex-direction: column; flex-shrink: 0; box-shadow: -2px 0 15px rgba(0,0,0,0.3);
+.topbar .brand{
+  font-size:18px;font-weight:800;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  display:flex;align-items:center;gap:8px;
 }
-.sidebar-header {
-  padding: 24px 20px 16px; border-bottom: 1px solid var(--border); text-align: center;
+.topbar .brand-icon{font-size:20px;-webkit-text-fill-color:initial}
+.topbar .icons{display:flex;gap:10px;align-items:center}
+.topbar .ic{
+  color:var(--text2);font-size:17px;cursor:pointer;
+  background:none;border:0;padding:6px;border-radius:6px;
+  transition:.2s;
 }
-.sidebar-logo {
-  width: 75px; height: 75px; border-radius: 50%; object-fit: cover;
-  border: 2px solid var(--accent); box-shadow: 0 0 15px rgba(124,92,252,0.3); margin-bottom: 12px;
+.topbar .ic:hover{color:var(--text);background:var(--bg3)}
+.topbar .avatar{
+  width:30px;height:30px;border-radius:50%;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:700;color:#fff;cursor:default;
+  border:2px solid rgba(124,92,252,.4);
 }
-.sidebar-brand {
-  font-size: 18px; font-weight: 800;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+.user-badge{
+  display:flex;align-items:center;gap:8px;
+  background:var(--bg3);border:1px solid var(--border);
+  border-radius:20px;padding:4px 12px 4px 4px;
+  font-size:12px;color:var(--text2);
 }
-.sidebar-user {
-  display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; font-size: 13px; color: var(--text2);
-}
-.status-dot {
-  width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: blink 2s ease-in-out infinite; box-shadow: 0 0 8px var(--green);
+.status-dot{
+  width:8px;height:8px;border-radius:50%;background:var(--green);
+  animation:blink 2s ease-in-out infinite;
 }
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
 
-.sidebar-tabs {
-  flex: 1; overflow-y: auto; padding: 16px 10px; display: flex; flex-direction: column; gap: 4px;
+/* ── TABS ── */
+.tabs{
+  background:var(--bg2);border-bottom:1px solid var(--border);
+  display:flex;overflow-x:auto;padding:0 16px;
+  scrollbar-width:none;gap:2px;
 }
-.tab-item {
-  padding: 12px 16px; color: var(--text2); cursor: pointer; font-size: 14px; font-weight: 500; border-radius: 8px; transition: .2s; user-select: none; display: flex; align-items: center; gap: 10px;
+.tabs::-webkit-scrollbar{display:none}
+.tab-item{
+  padding:14px 16px;color:var(--text2);cursor:pointer;
+  font-size:13px;white-space:nowrap;font-weight:500;
+  border-bottom:2px solid transparent;transition:.15s;user-select:none;
 }
-.tab-item:hover { background: rgba(255,255,255,0.03); color: var(--text); }
-.tab-item.active {
-  background: linear-gradient(90deg, rgba(124,92,252,0.15), transparent);
-  color: var(--accent); font-weight: 700; border-right: 3px solid var(--accent);
-}
-
-.sidebar-footer { padding: 16px; border-top: 1px solid var(--border); }
-.logout-btn {
-  width: 100%; padding: 12px; background: rgba(248,81,73,0.1); color: var(--red);
-  border: 1px solid rgba(248,81,73,0.2); border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 13px; transition: .2s;
-}
-.logout-btn:hover { background: var(--red); color: #fff; }
-
-/* ── MAIN CONTENT & TOP ACTIONS ── */
-.main-content {
-  flex: 1; display: flex; flex-direction: column; overflow: hidden; background: rgba(9, 11, 16, 0.85); backdrop-filter: blur(10px);
-}
-.top-actions {
-  height: 56px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; background: var(--bg2);
-}
-.top-actions-right { display: flex; gap: 10px; }
-.action-icon {
-  background: var(--bg3); border: 1px solid var(--border); color: var(--text2); width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: .2s; font-size: 16px;
-}
-.action-icon:hover { color: var(--accent); border-color: var(--accent); }
+.tab-item:hover{color:var(--text)}
+.tab-item.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
 
 /* ── CONTAINER ── */
-.container { flex: 1; overflow-y: auto; padding: 24px; }
-.tab-content { display: none; animation: fadein .3s ease; }
-.tab-content.active { display: block; }
-@keyframes fadein { from{opacity:0; transform:translateX(-10px)} to{opacity:1; transform:translateX(0)} }
-
-/* ── LTR Overrides (للحفاظ على الأكواد سليمة) ── */
-.console-box, .cmd-input, .editor-box, .log-box { direction: ltr; text-align: left; }
-.field-block input[dir="ltr"] { direction: ltr; text-align: left; }
+.container{max-width:1200px;margin:0 auto;padding:20px 16px}
+.tab-content{display:none;animation:fadein .2s}
+.tab-content.active{display:block}
+@keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
 /* ── CONSOLE ── */
-.power-row { display: flex; gap: 10px; margin-bottom: 16px; align-items: center; direction: ltr; }
-.btn-power { padding: 10px 20px; border: none; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; color: #fff; transition: .2s; }
-.btn-start { background: linear-gradient(135deg, #1a7f37, #2ea043); }
-.btn-restart { background: linear-gradient(135deg, #7c5cfc, #5a3fc0); }
-.btn-stop { background: linear-gradient(135deg, #b62324, #f85149); }
-.btn-power:hover { transform: translateY(-2px); filter: brightness(1.1); }
-.status-badge { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 8px 12px; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; font-family: monospace; }
-
-.console-box {
-  background: #010409; border: 1px solid #30363d; border-radius: 10px; padding: 16px; font-family: 'Consolas', monospace; font-size: 13px; color: #7ee787; height: 380px; overflow-y: auto; margin-bottom: 12px; line-height: 1.6;
+.power-row{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;margin-bottom:14px;align-items:center}
+.btn-power{
+  padding:11px 8px;border:none;border-radius:8px;font-weight:600;
+  font-size:13px;cursor:pointer;color:#fff;transition:.2s;letter-spacing:.3px;
 }
-.console-box .line-err { color: #f85149; }
-.console-box .line-warn { color: #d29922; }
-.console-box .line-info { color: #79c0ff; }
+.btn-start{background:linear-gradient(135deg,#1a7f37,#2ea043);box-shadow:0 2px 8px rgba(46,160,67,.3)}
+.btn-start:hover{filter:brightness(1.1)}
+.btn-restart{background:linear-gradient(135deg,#5a3fc0,#7c5cfc);box-shadow:0 2px 8px rgba(124,92,252,.3)}
+.btn-restart:hover{filter:brightness(1.1)}
+.btn-stop{background:linear-gradient(135deg,#b62324,#f85149);box-shadow:0 2px 8px rgba(248,81,73,.3)}
+.btn-stop:hover{filter:brightness(1.1)}
+.status-badge{
+  display:flex;align-items:center;gap:6px;
+  font-size:12px;font-weight:600;padding:8px 12px;
+  background:var(--bg3);border:1px solid var(--border);border-radius:20px;
+  white-space:nowrap;
+}
 
-.cmd-input { display: flex; align-items: center; background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 0 16px; }
-.cmd-input:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(124,92,252,.15); }
-.cmd-input .prompt { color: var(--accent); margin-right: 8px; font-weight: 700; font-size: 14px; }
-.cmd-input input { flex: 1; background: none; border: 0; outline: 0; color: var(--text); padding: 14px 0; font-family: monospace; font-size: 14px; }
+.console-box{
+  background:#010409;border:1px solid #30363d;border-radius:10px;
+  padding:14px;font-family:'Consolas','Monaco','Fira Code',monospace;
+  font-size:12.5px;color:#7ee787;height:340px;overflow-y:auto;
+  white-space:pre-wrap;word-break:break-all;margin-bottom:10px;
+  line-height:1.6;
+}
+.console-box .line-err{color:#f85149}
+.console-box .line-warn{color:#d29922}
+.console-box .line-info{color:#79c0ff}
+
+.cmd-input{
+  display:flex;align-items:center;
+  background:var(--bg2);border:1px solid var(--border);border-radius:8px;
+  padding:0 14px;margin-bottom:14px;transition:.2s;
+}
+.cmd-input:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,92,252,.15)}
+.cmd-input .prompt{color:var(--accent);margin-right:8px;font-weight:700;font-size:14px}
+.cmd-input input{
+  flex:1;background:none;border:0;outline:0;color:var(--text);
+  padding:12px 0;font-family:monospace;font-size:13px;
+}
 
 /* ── STATS GRID ── */
-.stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-bottom: 20px; }
-.stat-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 16px; position: relative; overflow: hidden; transition: .2s; }
-.stat-card::before { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 3px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
-.stat-card:hover { border-color: var(--accent); transform: translateY(-1px); }
-.stat-card .lbl { font-size: 12px; color: var(--text2); margin-bottom: 8px; font-weight: 700; }
-.stat-card .val { font-size: 16px; color: var(--text); font-weight: 800; direction: ltr; text-align: right; }
-.stat-card.green::before { background: var(--green); }
-.stat-card.red::before { background: var(--red); }
-.stat-card.yellow::before { background: var(--yellow); }
-.stat-card.orange::before { background: var(--orange); }
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:14px}
+.stat-card{
+  background:var(--bg3);border:1px solid var(--border);border-radius:10px;
+  padding:14px;position:relative;overflow:hidden;
+  transition:.2s;
+}
+.stat-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--accent),var(--accent2));
+}
+.stat-card:hover{border-color:var(--accent);transform:translateY(-1px)}
+.stat-card .lbl{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;font-weight:600}
+.stat-card .val{font-size:15px;color:var(--text);font-weight:700}
+.stat-card .val .max{color:var(--text3);font-weight:400;font-size:12px}
+.stat-card.green::before{background:var(--green)}
+.stat-card.red::before{background:var(--red)}
+.stat-card.yellow::before{background:var(--yellow)}
+.stat-card.orange::before{background:var(--orange)}
 
 /* ── SECTION CARD ── */
-.section-card {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  margin-bottom: 20px;
-  overflow: hidden;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+.section-card{
+  background:var(--bg3);border:1px solid var(--border);border-radius:12px;
+  margin-bottom:14px;overflow:hidden;
 }
-.section-head {
-  padding: 14px 20px;
-  background: var(--bg3);
-  border-bottom: 1px solid var(--border);
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text);
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.section-head{
+  padding:12px 16px;background:var(--bg4);border-bottom:1px solid var(--border);
+  font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;
+  letter-spacing:1px;display:flex;align-items:center;gap:6px;
 }
-.section-body {
-  padding: 20px;
-}
+.section-body{padding:16px}
 
 /* ── FILES ── */
-.file-toolbar {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
+.file-toolbar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.file-toolbar button{
+  padding:8px 14px;border:1px solid var(--border);border-radius:6px;
+  background:var(--bg4);color:var(--text);font-size:12px;cursor:pointer;
+  font-weight:500;transition:.15s;display:flex;align-items:center;gap:4px;
 }
-.file-toolbar button {
-  padding: 10px 16px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg3);
-  color: var(--text);
-  font-size: 13px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: .2s;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.file-toolbar button:hover{background:var(--accent);border-color:var(--accent);color:#fff}
+.breadcrumb{
+  padding:8px 12px;background:var(--bg2);border:1px solid var(--border);
+  border-radius:6px;font-size:12px;color:var(--text2);font-family:monospace;
+  margin-bottom:10px;overflow-x:auto;white-space:nowrap;
 }
-.file-toolbar button:hover {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(124,92,252,0.3);
+.file-list{
+  background:var(--bg3);border:1px solid var(--border);border-radius:10px;overflow:hidden;
 }
-.breadcrumb {
-  padding: 12px 16px;
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: 13px;
-  color: var(--text2);
-  font-family: monospace;
-  margin-bottom: 14px;
-  overflow-x: auto;
-  white-space: nowrap;
-  direction: ltr; /* لحفظ مسارات الملفات من اليسار لليمين */
-  text-align: left;
+.file-item{
+  display:flex;align-items:center;padding:10px 14px;
+  border-bottom:1px solid var(--border);cursor:pointer;
+  transition:.15s;gap:10px;
 }
-.file-list {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  overflow: hidden;
+.file-item:last-child{border-bottom:none}
+.file-item:hover{background:var(--bg4)}
+.file-icon{font-size:16px;width:24px;text-align:center;flex-shrink:0}
+.file-name{flex:1;font-size:13px;color:var(--text);font-weight:500;word-break:break-all}
+.file-size{font-size:11px;color:var(--text3);flex-shrink:0}
+.file-actions{display:flex;gap:4px;flex-shrink:0}
+.file-actions button{
+  padding:4px 8px;border:none;border-radius:4px;font-size:11px;cursor:pointer;
+  background:var(--bg4);color:var(--text2);transition:.15s;
 }
-.file-item {
-  display: flex;
-  align-items: center;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border);
-  cursor: pointer;
-  transition: .15s;
-  gap: 12px;
-  direction: ltr; /* لعرض أسماء الملفات بشكل سليم */
-}
-.file-item:last-child {
-  border-bottom: none;
-}
-.file-item:hover {
-  background: var(--bg3);
-}
-.file-icon {
-  font-size: 18px;
-  width: 28px;
-  text-align: center;
-  flex-shrink: 0;
-}
-.file-name {
-  flex: 1;
-  font-size: 14px;
-  color: var(--text);
-  font-weight: 600;
-  word-break: break-all;
-  text-align: left;
-}
-.file-size {
-  font-size: 12px;
-  color: var(--text3);
-  flex-shrink: 0;
-}
-.file-actions {
-  display: flex;
-  gap: 6px;
-  flex-shrink: 0;
-}
-.file-actions button {
-  padding: 6px 12px;
-  border: none;
-  border-radius: 6px;
-  font-size: 12px;
-  cursor: pointer;
-  background: var(--bg4);
-  color: var(--text2);
-  font-weight: 600;
-  transition: .15s;
-}
-.file-actions button:hover {
-  background: var(--accent);
-  color: #fff;
-}
-.file-actions button.danger:hover {
-  background: var(--red);
-}
+.file-actions button:hover{background:var(--accent);color:#fff}
+.file-actions button.danger:hover{background:var(--red)}
 
 /* ── AI CHAT ── */
-.ai-chat-wrap {
-  display: flex; flex-direction: column;
-  height: calc(100vh - 130px); min-height: 500px; max-height: 800px;
-  background: var(--bg2); border: 1px solid rgba(124,92,252,.2);
-  border-radius: 16px; overflow: hidden;
-  box-shadow: 0 0 40px rgba(124,92,252,.05);
+.ai-chat-wrap{
+  display:flex;flex-direction:column;
+  height:calc(100vh - 130px);min-height:500px;max-height:800px;
+  background:var(--bg2);border:1px solid rgba(124,92,252,.2);
+  border-radius:16px;overflow:hidden;
+  box-shadow:0 0 40px rgba(124,92,252,.05);
 }
-.ai-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 16px 20px;
-  background: linear-gradient(90deg, rgba(124,92,252,.1), transparent);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
+.ai-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 18px;
+  background:linear-gradient(90deg,rgba(124,92,252,.08),rgba(0,191,255,.04),transparent);
+  border-bottom:1px solid rgba(48,54,61,.7);
+  flex-shrink:0;
 }
-.ai-header-left { display: flex; align-items: center; gap: 12px; }
-.ai-avatar-main {
-  width: 42px; height: 42px; border-radius: 50%;
-  background: linear-gradient(135deg, #7c5cfc, #00bfff);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 20px; flex-shrink: 0;
-  box-shadow: 0 0 15px rgba(124,92,252,.4);
+.ai-header-left{display:flex;align-items:center;gap:12px}
+.ai-avatar-main{
+  width:38px;height:38px;border-radius:50%;
+  background:linear-gradient(135deg,#7c5cfc,#5a3fc0);
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;flex-shrink:0;
+  box-shadow:0 0 16px rgba(124,92,252,.4);
 }
-.ai-header-title { font-size: 15px; font-weight: 800; color: var(--text); }
-.ai-header-sub { font-size: 12px; color: var(--text3); margin-top: 2px; }
-.ai-clear-btn {
-  background: rgba(248,81,73,.1); border: 1px solid rgba(248,81,73,.2);
-  color: var(--red); font-weight: 600;
-  border-radius: 8px; padding: 8px 14px; cursor: pointer; font-size: 13px; transition: .2s;
+.ai-header-title{font-size:14px;font-weight:700;color:var(--text)}
+.ai-header-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.ai-clear-btn{
+  background:none;border:1px solid rgba(48,54,61,.6);color:var(--text3);
+  border-radius:8px;padding:6px 10px;cursor:pointer;font-size:13px;transition:.2s;
 }
-.ai-clear-btn:hover { background: var(--red); color: #fff; box-shadow: 0 4px 15px rgba(248,81,73,.3); }
+.ai-clear-btn:hover{background:rgba(248,81,73,.1);border-color:rgba(248,81,73,.3);color:#f85149}
 
-.ai-messages-box {
-  flex: 1; overflow-y: auto; padding: 20px;
-  display: flex; flex-direction: column; gap: 16px;
-  /* دمج لون الخلفية مع شعارك بشفافية 4% ليكون كعلامة مائية */
-  background: linear-gradient(rgba(1, 4, 9, 0.96), rgba(1, 4, 9, 0.96)), url('https://j.top4top.io/p_3820hbxes1.png') center/280px no-repeat;
-  background-attachment: fixed;
-  scrollbar-width: thin; scrollbar-color: #30363d transparent;
+.ai-messages-box{
+  flex:1;overflow-y:auto;padding:16px;
+  display:flex;flex-direction:column;gap:14px;
+  background:#010409;
+  scrollbar-width:thin;scrollbar-color:#30363d #010409;
 }
-.ai-messages-box::-webkit-scrollbar { width: 5px; }
-.ai-messages-box::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+.ai-messages-box::-webkit-scrollbar{width:5px}
+.ai-messages-box::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px}
 
-.ai-msg { display: flex; flex-direction: column; animation: fadeUp .3s ease; position: relative; z-index: 1; }
-@keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.ai-msg{display:flex;flex-direction:column;animation:fadeUp .2s ease}
+.ai-bubble{display:flex;gap:10px;align-items:flex-start;max-width:86%}
+.ai-msg.ai-user .ai-bubble{flex-direction:row-reverse;margin-left:auto;max-width:80%}
+.ai-avatar{
+  width:30px;height:30px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:14px;
+  background:var(--bg3);border:1px solid var(--border);margin-top:2px;
+}
+.ai-msg.ai-user .ai-avatar{
+  background:linear-gradient(135deg,#7c5cfc,#5a3fc0);border-color:transparent;
+  font-size:12px;color:#fff;font-weight:700;
+}
+.ai-text{
+  padding:11px 15px;border-radius:14px;font-size:13.5px;line-height:1.7;
+  background:rgba(255,255,255,.04);border:1px solid rgba(48,54,61,.6);
+  color:var(--text);white-space:pre-wrap;word-break:break-word;
+  border-bottom-left-radius:4px;
+}
+.ai-msg.ai-user .ai-text{
+  background:linear-gradient(135deg,rgba(124,92,252,.18),rgba(90,63,192,.12));
+  border-color:rgba(124,92,252,.25);
+  border-bottom-right-radius:4px;border-bottom-left-radius:14px;
+  text-align:right;direction:rtl;
+}
+.ai-text code{
+  background:rgba(124,92,252,.12);padding:2px 7px;border-radius:5px;
+  font-family:'Fira Code','Consolas',monospace;font-size:12px;color:#a78bfa;
+}
+.ai-text pre{
+  background:#0d1117;border:1px solid rgba(48,54,61,.8);border-radius:10px;
+  padding:14px;overflow-x:auto;margin:10px 0;position:relative;
+}
+.ai-text pre code{background:none;padding:0;color:#7ee787;font-size:12px;display:block}
+.ai-time{font-size:10px;color:var(--text3);margin-top:4px;padding:0 4px}
+.ai-msg.ai-user .ai-time{text-align:right}
 
-.ai-bubble { display: flex; gap: 12px; align-items: flex-start; max-width: 85%; }
-.ai-msg.ai-user .ai-bubble { flex-direction: row-reverse; margin-left: auto; max-width: 85%; }
-
-.ai-avatar {
-  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center; font-size: 16px;
-  background: var(--bg3); border: 1px solid var(--border); margin-top: 2px;
+/* Thinking */
+.ai-thinking-box{
+  padding:10px 16px;flex-shrink:0;
+  background:rgba(124,92,252,.03);border-top:1px solid rgba(48,54,61,.5);
 }
-.ai-msg.ai-user .ai-avatar {
-  background: linear-gradient(135deg, #7c5cfc, #5a3fc0); border-color: transparent;
-  font-size: 14px; color: #fff; font-weight: 700;
+.ai-thinking-label{
+  display:flex;align-items:center;gap:8px;
+  font-size:11px;color:#7c5cfc;font-weight:600;letter-spacing:.5px;margin-bottom:6px;
 }
-
-.ai-text {
-  padding: 14px 18px; border-radius: 16px; font-size: 14px; line-height: 1.7;
-  background: rgba(255,255,255,.03); border: 1px solid var(--border);
-  color: var(--text); white-space: pre-wrap; word-break: break-word;
-  border-top-right-radius: 4px;
-}
-.ai-msg.ai-user .ai-text {
-  background: linear-gradient(135deg, rgba(124,92,252,.15), rgba(90,63,192,.08));
-  border-color: rgba(124,92,252,.3);
-  border-top-right-radius: 16px; border-top-left-radius: 4px;
-  text-align: right; direction: rtl;
-}
-
-.ai-text code {
-  background: rgba(124,92,252,.15); padding: 2px 8px; border-radius: 6px;
-  font-family: 'Fira Code', 'Consolas', monospace; font-size: 13px; color: #a78bfa;
-}
-.ai-text pre {
-  background: #0d1117; border: 1px solid var(--border2); border-radius: 10px;
-  padding: 16px; overflow-x: auto; margin: 10px 0; position: relative;
-  direction: ltr; text-align: left; /* للحفاظ على الأكواد يسار-يمين */
-}
-.ai-text pre code { background: none; padding: 0; color: #7ee787; font-size: 13px; display: block; }
-
-.ai-time { font-size: 11px; color: var(--text3); margin-top: 6px; padding: 0 4px; }
-.ai-msg.ai-user .ai-time { text-align: right; }
-
-/* ── AI CHAT: Thinking & Input ── */
-.ai-thinking-box {
-  padding: 12px 18px; flex-shrink: 0;
-  background: rgba(124,92,252,.05); border-top: 1px solid rgba(48,54,61,.5);
-}
-.ai-thinking-label {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 12px; color: var(--accent); font-weight: 700; letter-spacing: .5px; margin-bottom: 8px;
-}
-.ai-think-dots { display: flex; gap: 4px; align-items: center; }
-.ai-think-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: typingDot 1.2s ease-in-out infinite; }
-.ai-think-dots span:nth-child(2) { animation-delay: .2s; }
-.ai-think-dots span:nth-child(3) { animation-delay: .4s; }
-.ai-reasoning-text {
-  font-size: 12px; color: var(--text2); font-family: 'Fira Code', 'Consolas', monospace;
-  max-height: 100px; overflow-y: auto; line-height: 1.6; white-space: pre-wrap; direction: rtl;
+.ai-think-dots{display:flex;gap:3px;align-items:center}
+.ai-think-dots span{width:5px;height:5px;border-radius:50%;background:#7c5cfc;animation:typingDot 1.2s ease-in-out infinite}
+.ai-think-dots span:nth-child(2){animation-delay:.2s}
+.ai-think-dots span:nth-child(3){animation-delay:.4s}
+.ai-reasoning-text{
+  font-size:11px;color:#484f58;font-family:'Fira Code','Consolas',monospace;
+  max-height:80px;overflow-y:auto;line-height:1.6;white-space:pre-wrap;
 }
 
-.ai-input-area {
-  flex-shrink: 0; padding: 16px 20px;
-  border-top: 1px solid var(--border);
-  background: rgba(9, 11, 16, 0.8);
+/* Input */
+.ai-input-area{
+  flex-shrink:0;padding:12px 14px;
+  border-top:1px solid rgba(48,54,61,.6);
+  background:rgba(255,255,255,.01);
 }
-.ai-input-row { display: flex; gap: 12px; align-items: flex-end; }
-.ai-textarea {
-  flex: 1; padding: 14px 18px; min-height: 50px; max-height: 130px;
-  background: var(--bg3); border: 1px solid var(--border);
-  border-radius: 12px; color: var(--text); font-size: 14px;
-  outline: none; resize: none; transition: .2s; font-family: inherit; line-height: 1.6;
-  direction: auto; overflow-y: auto;
+.ai-input-row{display:flex;gap:10px;align-items:flex-end}
+.ai-textarea{
+  flex:1;padding:11px 14px;min-height:42px;max-height:120px;
+  background:rgba(255,255,255,.04);border:1px solid rgba(48,54,61,.8);
+  border-radius:12px;color:var(--text);font-size:13.5px;
+  outline:none;resize:none;transition:.2s;font-family:inherit;line-height:1.55;
+  direction:auto;overflow-y:auto;
 }
-.ai-textarea:focus {
-  border-color: var(--accent);
-  background: rgba(124,92,252,.04);
-  box-shadow: 0 0 0 3px rgba(124,92,252,.15);
+.ai-textarea:focus{
+  border-color:#7c5cfc;
+  background:rgba(124,92,252,.04);
+  box-shadow:0 0 0 3px rgba(124,92,252,.1);
 }
-.ai-textarea::placeholder { color: var(--text3); }
-.ai-send-btn {
-  width: 50px; height: 50px; flex-shrink: 0;
-  background: linear-gradient(135deg, var(--accent), #5a3fc0);
-  border: none; border-radius: 12px; color: #fff; cursor: pointer; font-size: 18px;
-  display: flex; align-items: center; justify-content: center;
-  transition: .2s; box-shadow: 0 4px 15px rgba(124,92,252,.35);
+.ai-textarea::placeholder{color:#30363d}
+.ai-send-btn{
+  width:42px;height:42px;flex-shrink:0;
+  background:linear-gradient(135deg,#7c5cfc,#5a3fc0);
+  border:none;border-radius:12px;color:#fff;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:.2s;box-shadow:0 4px 14px rgba(124,92,252,.35);
 }
-.ai-send-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(124,92,252,.5); }
-.ai-send-btn:active { transform: translateY(0); }
-.ai-send-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
-.ai-footer-info { font-size: 11px; color: var(--text3); margin-top: 8px; text-align: center; }
+.ai-send-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(124,92,252,.5)}
+.ai-send-btn:active{transform:translateY(0)}
+.ai-send-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.ai-footer-info{font-size:10.5px;color:var(--text3);margin-top:7px;text-align:center}
 
-.ai-typing-wrap { display: flex; align-items: center; gap: 10px; }
-.ai-typing { display: flex; gap: 4px; align-items: center; padding: 12px 16px; background: var(--bg3); border: 1px solid var(--border); border-radius: 16px; border-top-right-radius: 4px; }
-.ai-typing span { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: typingDot 1.2s ease-in-out infinite; }
-.ai-typing span:nth-child(2) { animation-delay: .2s; }
-.ai-typing span:nth-child(3) { animation-delay: .4s; }
-@keyframes typingDot { 0%,60%,100% { transform: translateY(0); opacity: .3; } 30% { transform: translateY(-5px); opacity: 1; } }
+/* Typing indicator */
+.ai-typing-wrap{display:flex;align-items:center;gap:10px}
+.ai-typing{display:flex;gap:4px;align-items:center;padding:10px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(48,54,61,.6);border-radius:14px;border-bottom-left-radius:4px}
+.ai-typing span{width:6px;height:6px;border-radius:50%;background:#7c5cfc;animation:typingDot 1.2s ease-in-out infinite}
+.ai-typing span:nth-child(2){animation-delay:.2s}
+.ai-typing span:nth-child(3){animation-delay:.4s}
+@keyframes typingDot{0%,60%,100%{transform:translateY(0);opacity:.3}30%{transform:translateY(-5px);opacity:1}}
+
+/* ── DROP ZONE (kept minimal for JS compat) ── */
 
 /* ── BUTTONS ── */
-.btn-action {
-  padding: 10px 18px; border: none; border-radius: 8px; cursor: pointer;
-  background: linear-gradient(135deg, var(--accent), #5a3fc0); color: #fff;
-  font-weight: 700; font-size: 13px; transition: .2s; letter-spacing: .3px; 
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+.btn-action{
+  padding:8px 16px;border:none;border-radius:6px;cursor:pointer;
+  background:linear-gradient(135deg,var(--accent),#5a3fc0);color:#fff;
+  font-weight:600;font-size:12px;transition:.2s;letter-spacing:.3px;
 }
-.btn-action:hover { filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 4px 15px rgba(124,92,252,.4); }
-.btn-action.gray { background: var(--bg4); border: 1px solid var(--border); color: var(--text); box-shadow: none; }
-.btn-action.gray:hover { background: var(--border); color: #fff; }
-.btn-action.green { background: linear-gradient(135deg, #1a7f37, #2ea043); box-shadow: 0 4px 15px rgba(26,127,55,.3); }
-.btn-action.danger { background: linear-gradient(135deg, #b62324, #f85149); box-shadow: 0 4px 15px rgba(248,81,73,.3); }
-.btn-action.orange { background: linear-gradient(135deg, var(--orange), #c7541f); box-shadow: 0 4px 15px rgba(240,136,62,.3); }
+.btn-action:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.btn-action.gray{background:var(--bg4);border:1px solid var(--border);color:var(--text2)}
+.btn-action.gray:hover{background:var(--border);color:var(--text)}
+.btn-action.green{background:linear-gradient(135deg,#1a7f37,#2ea043)}
+.btn-action.danger{background:linear-gradient(135deg,#b62324,#f85149)}
+.btn-action.orange{background:linear-gradient(135deg,var(--orange),#c7541f)}
 
 /* ── FORMS ── */
-.field-block { margin-bottom: 14px; }
-.field-block label { display: block; font-size: 12px; color: var(--text2); font-weight: 700; margin-bottom: 6px; }
-.field-block input, .field-block select, .field-block textarea {
-  width: 100%; padding: 12px 14px; background: var(--bg3);
-  border: 1px solid var(--border); border-radius: 8px; color: var(--text);
-  font-size: 14px; outline: none; transition: .2s;
+.field-block{margin-bottom:12px}
+.field-block label{display:block;font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px}
+.field-block input,.field-block select,.field-block textarea{
+  width:100%;padding:10px 12px;background:var(--bg2);
+  border:1px solid var(--border);border-radius:6px;color:var(--text);
+  font-size:13px;outline:none;transition:.2s;
 }
-.field-block input:focus, .field-block select:focus, .field-block textarea:focus {
-  border-color: var(--accent); box-shadow: 0 0 0 3px rgba(124,92,252,.15);
+.field-block input:focus,.field-block select:focus,.field-block textarea:focus{
+  border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,92,252,.15);
 }
-.field-block input::placeholder, .field-block textarea::placeholder { color: var(--text3); }
-.row-end { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
+.field-block input::placeholder{color:var(--text3)}
+.row-end{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
 
-/* ── MODALS ── */
-.modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.8); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
-.modal.open { display: flex; animation: fadeInModal .2s ease; }
-@keyframes fadeInModal { from { opacity: 0; } to { opacity: 1; } }
-
-.modal-box { background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; width: min(600px, 94vw); max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,.6); transform: scale(0.98); animation: scaleUpModal .2s ease forwards; }
-@keyframes scaleUpModal { to { transform: scale(1); } }
-
-.modal-head { padding: 18px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
-.modal-head h3 { font-size: 16px; font-weight: 800; color: var(--text); }
-.modal-head .close { background: rgba(248,81,73,.1); border: 1px solid rgba(248,81,73,.2); border-radius: 6px; color: var(--red); font-size: 18px; cursor: pointer; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; transition: .2s; }
-.modal-head .close:hover { background: var(--red); color: #fff; box-shadow: 0 4px 10px rgba(248,81,73,.4); }
-.modal-body { padding: 24px; overflow-y: auto; flex: 1; }
-.modal-foot { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; background: var(--bg3); border-bottom-left-radius: 16px; border-bottom-right-radius: 16px; }
+/* ── MODAL ── */
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal.open{display:flex}
+.modal-box{background:var(--bg3);border:1px solid var(--border);border-radius:16px;width:min(540px,94vw);max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.modal-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-head h3{font-size:16px;font-weight:700;color:var(--text)}
+.modal-head .close{background:none;border:0;color:var(--text2);font-size:22px;cursor:pointer;line-height:1;padding:0 4px}
+.modal-head .close:hover{color:var(--text)}
+.modal-body{padding:20px;overflow-y:auto;flex:1}
+.modal-foot{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
 
 /* ── EDITOR ── */
-.editor-wrap { position: relative; }
-.editor-box {
-  width: 100%; min-height: 400px; padding: 16px;
-  background: #010409; border: 1px solid var(--border); border-radius: 8px;
-  color: #7ee787; font-family: 'Fira Code', 'Consolas', monospace; font-size: 14px;
-  outline: none; resize: vertical; line-height: 1.6; tab-size: 2;
-  direction: ltr; text-align: left; /* هام جداً لكي تبقى الأكواد صحيحة */
+.editor-wrap{position:relative}
+.editor-box{
+  width:100%;min-height:320px;padding:14px;
+  background:#010409;border:1px solid var(--border);border-radius:8px;
+  color:#7ee787;font-family:monospace;font-size:13px;
+  outline:none;resize:vertical;line-height:1.6;tab-size:2;
 }
-.editor-box:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(124,92,252,.15); }
+.editor-box:focus{border-color:var(--accent)}
 
 /* ── NODE.JS TAB ── */
-.nodejs-project-card {
-  background: var(--bg3); border: 1px solid var(--border); border-radius: 12px;
-  padding: 16px; margin-bottom: 12px;
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  box-shadow: 0 4px 10px rgba(0,0,0,.1); transition: .2s;
+.nodejs-project-card{
+  background:var(--bg3);border:1px solid var(--border);border-radius:10px;
+  padding:14px;margin-bottom:10px;
+  display:flex;align-items:center;justify-content:space-between;
+  gap:12px;
 }
-.nodejs-project-card:hover { border-color: rgba(46,160,67,.4); }
-.project-info .p-name { font-size: 15px; font-weight: 800; color: var(--text); }
-.project-info .p-meta { font-size: 12px; color: var(--text2); margin-top: 4px; direction: ltr; text-align: left; }
-.p-status { font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 20px; }
-.p-status.running { background: rgba(46,160,67,.15); color: var(--green); border: 1px solid rgba(46,160,67,.3); }
-.p-status.stopped { background: rgba(248,81,73,.1); color: var(--red); border: 1px solid rgba(248,81,73,.2); }
-.log-box {
-  background: #010409; border: 1px solid var(--border); border-radius: 8px;
-  padding: 14px; font-family: 'Fira Code', monospace; font-size: 12px; color: #7ee787;
-  height: 200px; overflow-y: auto; margin-top: 10px; white-space: pre-wrap; direction: ltr; text-align: left;
+.project-info .p-name{font-size:14px;font-weight:700;color:var(--text)}
+.project-info .p-meta{font-size:11px;color:var(--text2);margin-top:3px}
+.p-status{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px}
+.p-status.running{background:rgba(46,160,67,.15);color:var(--green);border:1px solid rgba(46,160,67,.3)}
+.p-status.stopped{background:rgba(248,81,73,.1);color:var(--red);border:1px solid rgba(248,81,73,.2)}
+.log-box{
+  background:#010409;border:1px solid var(--border);border-radius:6px;
+  padding:10px;font-family:monospace;font-size:11px;color:#7ee787;
+  height:180px;overflow-y:auto;margin-top:8px;white-space:pre-wrap;
 }
 
 /* ── PHP TAB ── */
-.php-server-card {
-  background: var(--bg3); border: 1px solid var(--border); border-radius: 12px;
-  padding: 16px; margin-bottom: 12px; box-shadow: 0 4px 10px rgba(0,0,0,.1); transition: .2s;
+.php-server-card{
+  background:var(--bg3);border:1px solid var(--border);border-radius:10px;
+  padding:14px;margin-bottom:10px;
 }
-.php-server-card:hover { border-color: rgba(240,136,62,.4); }
 
-/* ── TOAST (الإشعارات) ── */
-.toast-container { position: fixed; bottom: 20px; left: 20px; z-index: 99999; display: flex; flex-direction: column; gap: 10px; }
-.toast {
-  padding: 14px 20px; border-radius: 12px; font-size: 14px; font-weight: 700; color: #fff;
-  display: flex; align-items: center; gap: 10px;
-  animation: slideIn .3s ease; box-shadow: 0 6px 20px rgba(0,0,0,.4); max-width: 350px;
+/* ── OWNER STATS ── */
+.stats4{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:14px}
+.stat4{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;position:relative;overflow:hidden}
+.stat4::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.stat4.purple::before{background:var(--accent)}
+.stat4.blue::before{background:var(--accent2)}
+.stat4.green::before{background:var(--green)}
+.stat4.orange::before{background:var(--orange)}
+.s4lbl{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px}
+.s4val{font-size:28px;font-weight:800;color:var(--text)}
+
+/* ── TOGGLE SWITCH ── */
+.toggle-switch{position:relative;width:44px;height:24px;flex-shrink:0}
+.toggle-switch input{display:none}
+.slider{
+  position:absolute;inset:0;background:var(--bg4);border:1px solid var(--border);
+  border-radius:24px;cursor:pointer;transition:.3s;
 }
-.toast.ok { background: linear-gradient(135deg, #1a7f37, #2ea043); }
-.toast.err { background: linear-gradient(135deg, #b62324, #f85149); }
-.toast.info { background: linear-gradient(135deg, var(--accent), #5a3fc0); }
-@keyframes slideIn { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-
-/* ── LIST ITEMS (الخوادم، النسخ، الطلبات المعلقة) ── */
-.srv-card, .zip-item, .pending-card {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  background: var(--bg4); border: 1px solid var(--border); border-radius: 10px;
-  padding: 14px 16px; margin-bottom: 8px; transition: .2s;
+.slider:before{
+  content:'';position:absolute;left:3px;top:3px;
+  width:16px;height:16px;border-radius:50%;
+  background:var(--text2);transition:.3s;
 }
-.srv-card:hover, .zip-item:hover, .pending-card:hover { border-color: var(--accent); }
-.srv-name, .p-user { font-size: 15px; font-weight: 700; color: var(--text); }
-.srv-meta, .p-time { font-size: 12px; color: var(--text2); margin-top: 4px; direction: ltr; text-align: left; }
-.z-name { color: var(--text); font-size: 14px; font-family: monospace; font-weight: 600; direction: ltr; text-align: left; }
-.z-size { color: var(--text2); font-size: 12px; margin-top: 4px; direction: ltr; text-align: left; }
+input:checked + .slider{background:var(--accent);border-color:var(--accent)}
+input:checked + .slider:before{transform:translateX(20px);background:#fff}
 
-/* ── RESPONSIVE (الهواتف) ── */
-@media(max-width: 768px) {
-  .app-layout { flex-direction: column; }
-  .sidebar { width: 100%; height: auto; border-left: none; border-bottom: 1px solid var(--border); padding: 10px; }
-  .sidebar-header { display: none; }
-  .sidebar-tabs { flex-direction: row; padding: 0; overflow-x: auto; gap: 10px; }
-  .tab-item { white-space: nowrap; padding: 10px; border-right: none; border-bottom: 3px solid transparent; }
-  .tab-item.active { background: none; border-bottom-color: var(--accent); }
-  .stats-grid { grid-template-columns: 1fr 1fr; }
-  .power-row { flex-wrap: wrap; justify-content: center; }
-  .btn-power { flex: 1; min-width: 100px; text-align: center; }
-  .top-actions { padding: 0 14px; }
-  .container { padding: 16px 10px; }
+/* ── TOAST ── */
+.toast-container{position:fixed;bottom:20px;right:20px;z-index:99999;display:flex;flex-direction:column;gap:8px}
+.toast{
+  padding:12px 18px;border-radius:10px;font-size:13px;font-weight:600;
+  color:#fff;display:flex;align-items:center;gap:8px;
+  animation:slideIn .3s ease;box-shadow:0 4px 20px rgba(0,0,0,.4);
+  max-width:300px;
+}
+.toast.ok{background:linear-gradient(135deg,#1a7f37,#2ea043)}
+.toast.err{background:linear-gradient(135deg,#b62324,#f85149)}
+.toast.info{background:linear-gradient(135deg,var(--accent),#5a3fc0)}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* ── SERVERS MODAL ── */
+.srv-card{
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--bg4);border:1px solid var(--border);border-radius:8px;
+  padding:12px 14px;margin-bottom:8px;transition:.15s;
+}
+.srv-card:hover{border-color:var(--accent)}
+.srv-name{font-size:14px;font-weight:600;color:var(--text)}
+.srv-meta{font-size:12px;color:var(--text2);margin-top:2px}
+.srv-del-btn{
+  background:var(--red);border:none;border-radius:6px;
+  color:#fff;font-size:16px;width:32px;height:32px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:.15s;flex-shrink:0;
+}
+.srv-del-btn:hover{filter:brightness(1.2)}
+
+/* ── ZIP ITEMS ── */
+.zip-item{
+  display:flex;justify-content:space-between;align-items:center;
+  background:var(--bg4);border:1px solid var(--border);border-radius:6px;
+  padding:10px 12px;margin-bottom:6px;
+}
+.z-name{color:var(--text);font-size:13px;font-family:monospace}
+.z-size{color:var(--text2);font-size:11px;margin-top:2px}
+
+/* ── PENDING ── */
+.pending-card{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  background:var(--bg4);border:1px solid rgba(255,170,0,.3);border-radius:8px;
+  padding:10px 14px;margin-bottom:8px;
+}
+.pending-card .p-user{font-size:13px;font-weight:600;color:var(--text)}
+.pending-card .p-time{font-size:11px;color:var(--text2);margin-top:2px}
+
+/* ── RESPONSIVE ── */
+@media(max-width:600px){
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .power-row{grid-template-columns:1fr 1fr 1fr;gap:6px}
+  .power-row .status-badge{display:none}
+  .topbar .brand{font-size:15px}
+  .container{padding:12px 10px}
+  .stats4{grid-template-columns:1fr 1fr}
 }
 </style>
 </head>
 <body>
 
-<div class="app-layout">
-  
-  <aside class="sidebar">
-    <div class="sidebar-header">
-      <img src="https://j.top4top.io/p_3820hbxes1.png" alt="DEV RIKO" class="sidebar-logo">
-      <div class="sidebar-brand">DEV RIKO PANEL</div>
-      <div class="sidebar-user"><div class="status-dot"></div> <span id="topbar-user" dir="ltr">''' + __import__('html').escape(username or '') + r'''</span></div>
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="brand">
+    <span class="brand-icon">🚀</span> SERVER HUB
+  </div>
+  <div class="icons">
+    <button class="ic" onclick="loadSearch()" title="Search">🔍</button>
+    <button class="ic" onclick="openServersModal()" title="Servers">🗂</button>
+    <div class="user-badge">
+      <div class="status-dot"></div>
+      <span id="topbar-user">''' + html.escape(username or '') + r'''</span>
     </div>
-    <div class="sidebar-tabs" id="tabs">
-      <div class="tab-item active" data-tab="console">💻 الترمنال</div>
-      <div class="tab-item" data-tab="files">📁 إدارة الملفات</div>
-      <div class="tab-item" data-tab="databases">🗄 قواعد البيانات</div>
-      <div class="tab-item" data-tab="schedules">⏰ الجدولة</div>
-      ''' + extra_tabs + r'''
+    <button class="ic" onclick="location.href='/logout'" title="Logout">⏏</button>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs" id="tabs">
+  <div class="tab-item active" data-tab="console">💻 Console</div>
+  <div class="tab-item" data-tab="files">📁 Files</div>
+  <div class="tab-item" data-tab="databases">🗄 Databases</div>
+  <div class="tab-item" data-tab="schedules">⏰ Schedules</div>
+  ''' + extra_tabs + r'''
+</div>
+
+<div class="container">
+<div id="toast-container" class="toast-container"></div>
+
+<!-- ===== CONSOLE TAB ===== -->
+<div class="tab-content active" id="tab-console">
+  <!-- ── Terminal tabs bar ── -->
+  <div id="term-tabs-bar" style="display:flex;align-items:center;gap:4px;margin-bottom:8px;flex-wrap:wrap">
+    <!-- tabs injected by JS -->
+    <button onclick="addTerminal()" title="ترمنال جديد"
+      style="padding:5px 10px;background:var(--bg3);border:1px dashed var(--border2);border-radius:7px;
+             color:var(--accent2);cursor:pointer;font-size:13px;white-space:nowrap;transition:.15s"
+      onmouseover="this.style.borderColor='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)'">
+      ＋ ترمنال جديد
+    </button>
+  </div>
+
+  <!-- ── Power row ── -->
+  <div class="power-row">
+    <button class="btn-power btn-start"   onclick="powerAction('start')">▶ Start</button>
+    <button class="btn-power btn-restart" onclick="powerAction('restart')">↺ Restart</button>
+    <button class="btn-power btn-stop"    onclick="powerAction('stop')">■ Stop</button>
+    <div class="status-badge">
+      <span id="proc-dot"    style="width:8px;height:8px;border-radius:50%;background:#f85149;display:inline-block"></span>
+      <span id="proc-status">Stopped</span>
     </div>
-    <div class="sidebar-footer">
-      <button class="logout-btn" onclick="location.href='/logout'">تسجيل الخروج</button>
-    </div>
-  </aside>
+  </div>
 
-  <main class="main-content">
-    
-    <div class="top-actions">
-      <div style="font-weight:800; color:var(--text); font-size: 16px;">مرحباً بك في DEV RIKO PANEL</div>
-      <div class="top-actions-right">
-        <button class="action-icon" onclick="loadSearch()" title="بحث شامل">🔍</button>
-        <button class="action-icon" onclick="openServersModal()" title="إدارة السيرفرات المتصلة">🗂</button>
+  <!-- ── Terminal windows container ── -->
+  <div id="terminals-container"></div>
+
+  <!-- Stats -->
+  <div class="stats-grid" id="stats-grid">
+    <div class="stat-card"><div class="lbl">IP Address</div><div class="val" id="s-ip">—</div></div>
+    <div class="stat-card"><div class="lbl">Panel Port</div><div class="val green" id="s-port" style="cursor:pointer;color:#3fb950" onclick="copyPort()" title="Click to copy">—</div></div>
+    <div class="stat-card"><div class="lbl">Uptime</div><div class="val" id="s-uptime">—</div></div>
+    <div class="stat-card"><div class="lbl">CPU</div><div class="val" id="s-cpu">—</div></div>
+    <div class="stat-card"><div class="lbl">Memory</div><div class="val" id="s-mem">—</div></div>
+    <div class="stat-card"><div class="lbl">Disk</div><div class="val" id="s-disk">—</div></div>
+    <div class="stat-card green"><div class="lbl">Net In</div><div class="val" id="s-in">—</div></div>
+    <div class="stat-card orange"><div class="lbl">Net Out</div><div class="val" id="s-out">—</div></div>
+    <div class="stat-card"><div class="lbl">Hostname</div><div class="val" id="s-host">—</div></div>
+    <div class="stat-card"><div class="lbl">Platform</div><div class="val" id="s-plat">—</div></div>
+  </div>
+
+  <!-- Service Links -->
+  <div class="section-card">
+    <div class="section-head">🔗 Active Services & Links</div>
+    <div class="section-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="stat-card" style="cursor:pointer" id="web-link-card" onclick="openWebLink()">
+          <div class="lbl">🌐 Website</div>
+          <div class="val" style="font-size:12px;color:#3fb950;word-break:break-all" id="web-link">No HTML file</div>
+        </div>
+        <div class="stat-card" style="cursor:pointer" id="api-link-card" onclick="openApiLink()">
+          <div class="lbl">⚡ API Service</div>
+          <div class="val" style="font-size:12px;color:#00bfff;word-break:break-all" id="api-link">No API file</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px">
+        <a href="https://t.me/I_tt_6" target="_blank" style="text-decoration:none">
+          <div class="stat-card"><div class="lbl">👨‍💻 Developer</div><div class="val" style="font-size:12px;color:var(--accent)">SHBH_S1</div></div>
+        </a>
+        <a href="https://t.me/Notfound_ELMODMEN" target="_blank" style="text-decoration:none">
+          <div class="stat-card"><div class="lbl">📢 Channel</div><div class="val" style="font-size:12px;color:var(--yellow)">@RIKO</div></div>
+        </a>
+        <div class="stat-card"><div class="lbl">🔌 Port</div><div class="val" id="port-display" style="color:var(--green);cursor:pointer" onclick="copyPort()">—</div></div>
       </div>
     </div>
+  </div>
+</div>
 
-    <div class="container">
-      <div id="toast-container" class="toast-container"></div>
+<!-- ===== FILES TAB ===== -->
+<div class="tab-content" id="tab-files">
+  <input type="file" id="file-up" style="display:none" multiple onchange="uploadFiles(this)">
+  <input type="file" id="zip-up" style="display:none" accept=".zip,.tar,.gz,.tar.gz,.rar" onchange="uploadAndExtract(this)">
 
-      <div class="tab-content active" id="tab-console">
-        
-        <div id="term-tabs-bar" style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-          <button class="btn-action gray" onclick="addTerminal()" style="padding:6px 12px; font-size: 12px;">＋ فتح ترمنال جديد</button>
+  <div class="file-toolbar">
+    <button onclick="createDir()">📁 New Folder</button>
+    <button onclick="newFile()">📄 New File</button>
+    <button onclick="document.getElementById('file-up').click()">⬆ Upload</button>
+    <button onclick="document.getElementById('zip-up').click()">📦 Extract ZIP</button>
+    <button onclick="loadFiles()">🔄 Refresh</button>
+  </div>
+
+  <div class="breadcrumb" id="breadcrumb">/ home /</div>
+  <div class="file-list" id="file-list"></div>
+</div>
+
+<!-- ===== AI TAB ===== -->
+<div class="tab-content" id="tab-ai">
+  <div class="ai-chat-wrap">
+    <!-- Header -->
+    <div class="ai-header">
+      <div class="ai-header-left">
+        <div class="ai-avatar-main">🤖</div>
+        <div>
+          <div class="ai-header-title">SERVER HUB AI</div>
+          <div class="ai-header-sub">GPT-OSS 120B · NVIDIA NIM</div>
         </div>
+      </div>
+      <button class="ai-clear-btn" onclick="clearAiChat()" title="Clear chat">🗑</button>
+    </div>
 
-        <div class="power-row">
-          <button class="btn-power btn-start" onclick="powerAction('start')">▶ تشغيل السيرفر</button>
-          <button class="btn-power btn-restart" onclick="powerAction('restart')">↺ إعادة التشغيل</button>
-          <button class="btn-power btn-stop" onclick="powerAction('stop')">■ إيقاف</button>
-          <div class="status-badge" dir="ltr" style="margin-right: auto;">
-            <span id="proc-dot" style="width:10px;height:10px;border-radius:50%;background:#f85149;display:inline-block"></span>
-            <span id="proc-status">Stopped</span>
+    <!-- Messages -->
+    <div id="ai-messages" class="ai-messages-box">
+      <div class="ai-msg ai-assistant">
+        <div class="ai-bubble">
+          <span class="ai-avatar">🤖</span>
+          <div class="ai-text">مرحباً! أنا مساعدك الذكي.<br>اسألني أي شيء — كود، أفكار، شرح، أو أي مساعدة تحتاجها.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Thinking -->
+    <div id="ai-thinking-box" class="ai-thinking-box" style="display:none">
+      <div class="ai-thinking-label">
+        <span class="ai-think-dots"><span></span><span></span><span></span></span>
+        جاري التفكير...
+      </div>
+      <div id="ai-reasoning" class="ai-reasoning-text"></div>
+    </div>
+
+    <!-- Input -->
+    <div class="ai-input-area">
+      <div class="ai-input-row">
+        <textarea id="ai-input"
+          class="ai-textarea"
+          placeholder="اكتب رسالتك هنا... (Enter للإرسال، Shift+Enter لسطر جديد)"
+          rows="1"
+          onkeydown="aiKeyDown(event)"
+          oninput="autoResizeAI(this)"
+        ></textarea>
+        <button onclick="sendAiMessage()" id="ai-send-btn" class="ai-send-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+      <div class="ai-footer-info">Enter للإرسال · Shift+Enter لسطر جديد · يدعم العربية والإنجليزية</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== DATABASES TAB ===== -->
+<div class="tab-content" id="tab-databases">
+  <div class="section-card">
+    <div class="section-head">🗄 Create Database</div>
+    <div class="section-body">
+      <p style="color:var(--text2);font-size:13px;margin-bottom:12px">Manage SQLite / JSON databases in your panel folder.</p>
+      <div class="field-block"><label>Database Name</label><input id="db-name" placeholder="my_database"></div>
+      <div class="row-end"><button class="btn-action" onclick="createDB()">Create Database</button></div>
+    </div>
+  </div>
+  <div id="db-list"></div>
+</div>
+
+<!-- ===== SCHEDULES TAB ===== -->
+<div class="tab-content" id="tab-schedules">
+  <div class="section-card">
+    <div class="section-head">⏰ Create Schedule</div>
+    <div class="section-body">
+      <div class="field-block"><label>Name</label><input id="sch-name" placeholder="Daily backup"></div>
+      <div class="field-block"><label>Command</label><input id="sch-cmd" placeholder="echo hello"></div>
+      <div class="field-block"><label>Cron Expression</label><input id="sch-cron" value="* * * * *"></div>
+      <div class="row-end"><button class="btn-action" onclick="addSchedule()">Add Schedule</button></div>
+    </div>
+  </div>
+  <div id="sch-list"></div>
+</div>
+
+<!-- ===== NODE.JS TAB ===== -->
+<div class="tab-content" id="tab-nodejs">
+  <div class="section-card">
+    <div class="section-head">🟢 Node.js Project Launcher</div>
+    <div class="section-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="field-block" style="grid-column:1/-1">
+          <label>📁 Project Path</label>
+          <input id="nodejs-path" placeholder="e.g. /panel_data/users_data/myuser/myproject">
+        </div>
+        <div class="field-block">
+          <label>📄 Main File <span style="color:var(--text3);font-weight:400">(e.g. index.js, src/app.js)</span></label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input id="nodejs-main" placeholder="auto-detect" style="flex:1">
+            <button class="btn-action gray" style="font-size:11px;white-space:nowrap" onclick="loadNodeJsFiles()">📂 Browse</button>
           </div>
+          <div id="nodejs-files-list" style="display:none;margin-top:6px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;max-height:140px;overflow-y:auto"></div>
         </div>
-
-        <div id="terminals-container"></div>
-
-        <div class="stats-grid" id="stats-grid">
-          <div class="stat-card"><div class="lbl">IP Address</div><div class="val" id="s-ip">—</div></div>
-          <div class="stat-card"><div class="lbl">Panel Port</div><div class="val" id="s-port" style="color:var(--green);cursor:pointer" onclick="copyPort()" title="نسخ البورت">—</div></div>
-          <div class="stat-card"><div class="lbl">Uptime</div><div class="val" id="s-uptime">—</div></div>
-          <div class="stat-card"><div class="lbl">CPU Usage</div><div class="val" id="s-cpu">—</div></div>
-          <div class="stat-card"><div class="lbl">RAM Memory</div><div class="val" id="s-mem">—</div></div>
-          <div class="stat-card"><div class="lbl">Disk Storage</div><div class="val" id="s-disk">—</div></div>
-          <div class="stat-card green"><div class="lbl">Network In</div><div class="val" id="s-in">—</div></div>
-          <div class="stat-card orange"><div class="lbl">Network Out</div><div class="val" id="s-out">—</div></div>
-          <div class="stat-card"><div class="lbl">Hostname</div><div class="val" id="s-host">—</div></div>
-          <div class="stat-card"><div class="lbl">Platform OS</div><div class="val" id="s-plat">—</div></div>
+        <div class="field-block">
+          <label>📦 Dependencies File <span style="color:var(--text3);font-weight:400">(e.g. package.json)</span></label>
+          <input id="nodejs-deps" placeholder="package.json (default)">
         </div>
-
-        <!-- Service Links -->
-        <div class="section-card">
-          <div class="section-head">🔗 الروابط السريعة والخدمات</div>
-          <div class="section-body">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-              <div class="stat-card" style="cursor:pointer" id="web-link-card" onclick="openWebLink()">
-                <div class="lbl">🌐 رابط الموقع</div>
-                <div class="val" style="font-size:13px;color:var(--green);word-break:break-all" id="web-link">No HTML file</div>
-              </div>
-              <div class="stat-card" style="cursor:pointer" id="api-link-card" onclick="openApiLink()">
-                <div class="lbl">⚡ رابط الـ API</div>
-                <div class="val" style="font-size:13px;color:var(--accent2);word-break:break-all" id="api-link">No API file</div>
-              </div>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:14px">
-              <a href="https://t.me/SHBH_S1" target="_blank" style="text-decoration:none">
-                <div class="stat-card"><div class="lbl">👨‍💻 المطور</div><div class="val" style="font-size:14px;color:var(--accent)">@SHBH_S1</div></div>
-              </a>
-              <a href="https://t.me/SHOBING_HXH" target="_blank" style="text-decoration:none">
-                <div class="stat-card"><div class="lbl">📢 القناة الرسمية</div><div class="val" style="font-size:14px;color:var(--yellow)">@SHOBING_HXH</div></div>
-              </a>
-              <div class="stat-card"><div class="lbl">🔌 المنفذ (Port)</div><div class="val" id="port-display" style="color:var(--green);cursor:pointer" onclick="copyPort()">—</div></div>
-            </div>
+        <div class="field-block">
+          <label>🔌 Port <span style="color:var(--text3);font-weight:400">(optional — auto if empty)</span></label>
+          <input id="nodejs-port" type="number" placeholder="auto">
+        </div>
+        <div class="field-block" style="grid-column:1/-1">
+          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px" id="nodejs-cmd-preview" style="display:none">
+            <div style="font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:.8px">📋 Install & Run Commands Preview</div>
+            <div id="nodejs-install-cmd" style="font-family:monospace;font-size:12px;color:#79c0ff;padding:4px 0"></div>
+            <div id="nodejs-run-cmd" style="font-family:monospace;font-size:12px;color:#7ee787;padding:4px 0"></div>
           </div>
         </div>
       </div>
-
-      <!-- ===== FILES TAB ===== -->
-      <div class="tab-content" id="tab-files">
-        <input type="file" id="file-up" style="display:none" multiple onchange="uploadFiles(this)">
-        <input type="file" id="zip-up" style="display:none" accept=".zip,.tar,.gz,.tar.gz,.rar" onchange="uploadAndExtract(this)">
-
-        <div class="file-toolbar">
-          <button class="btn-action gray" onclick="createDir()">📁 مجلد جديد</button>
-          <button class="btn-action gray" onclick="newFile()">📄 ملف جديد</button>
-          <button class="btn-action gray" onclick="document.getElementById('file-up').click()">⬆ رفع ملفات</button>
-          <button class="btn-action gray" onclick="document.getElementById('zip-up').click()">📦 استخراج ZIP</button>
-          <button class="btn-action gray" onclick="loadFiles()">🔄 تحديث القائمة</button>
-        </div>
-
-        <div class="breadcrumb" id="breadcrumb" dir="ltr">/ home /</div>
-        <div class="file-list" id="file-list"></div>
+      <div class="row-end" style="gap:8px">
+        <button class="btn-action gray" onclick="previewNodeCmd()">👁 Preview Commands</button>
+        <button class="btn-action green" onclick="startNodeProject()">▶ Start Node.js</button>
       </div>
+      <div id="nodejs-start-output" style="display:none;margin-top:10px;background:#010409;border:1px solid var(--border);border-radius:6px;padding:10px;font-family:monospace;font-size:11px;color:#7ee787;max-height:120px;overflow-y:auto;white-space:pre-wrap"></div>
+    </div>
+  </div>
+  <div id="nodejs-list"></div>
+</div>
 
-      <!-- ===== AI TAB ===== -->
-      <div class="tab-content" id="tab-ai">
-        <div class="ai-chat-wrap">
-          <!-- Header -->
-          <div class="ai-header">
-            <div class="ai-header-left">
-              <div class="ai-avatar-main">🤖</div>
-              <div>
-                <div class="ai-header-title">DEV RIKO AI</div>
-                <div class="ai-header-sub">GPT-OSS 120B · المساعد الذكي</div>
-              </div>
-            </div>
-            <button class="ai-clear-btn" onclick="clearAiChat()" title="مسح المحادثة">🗑 مسح</button>
+<!-- ===== PHP TAB ===== -->
+<div class="tab-content" id="tab-php">
+  <div class="section-card">
+    <div class="section-head">🐘 PHP Server Launcher</div>
+    <div class="section-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="field-block" style="grid-column:1/-1">
+          <label>📁 PHP Root Folder</label>
+          <input id="php-path" placeholder="e.g. /panel_data/users_data/myuser/mysite">
+        </div>
+        <div class="field-block">
+          <label>📄 Main Entry File <span style="color:var(--text3);font-weight:400">(e.g. index.php)</span></label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input id="php-main" placeholder="index.php (default)" style="flex:1">
+            <button class="btn-action gray" style="font-size:11px;white-space:nowrap" onclick="loadPhpFiles()">📂 Browse</button>
           </div>
-
-          <!-- Messages -->
-          <div id="ai-messages" class="ai-messages-box">
-            <div class="ai-msg ai-assistant">
-              <div class="ai-bubble">
-                <span class="ai-avatar">🤖</span>
-                <div class="ai-text">مرحباً بك! أنا مساعدك الذكي الخاص بلوحة DEV RIKO.<br>اسألني أي شيء — أكواد، حل مشاكل، أو أي استفسار آخر!</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Thinking -->
-          <div id="ai-thinking-box" class="ai-thinking-box" style="display:none">
-            <div class="ai-thinking-label">
-              <span class="ai-think-dots"><span></span><span></span><span></span></span>
-              جاري التفكير وجمع المعلومات...
-            </div>
-            <div id="ai-reasoning" class="ai-reasoning-text"></div>
-          </div>
-
-          <!-- Input -->
-          <div class="ai-input-area">
-            <div class="ai-input-row">
-              <textarea id="ai-input"
-                class="ai-textarea"
-                placeholder="اكتب رسالتك هنا... (Enter للإرسال، Shift+Enter لسطر جديد)"
-                rows="1"
-                onkeydown="aiKeyDown(event)"
-                oninput="autoResizeAI(this)"
-              ></textarea>
-              <button onclick="sendAiMessage()" id="ai-send-btn" class="ai-send-btn">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-              </button>
-            </div>
-            <div class="ai-footer-info">Enter للإرسال · Shift+Enter لسطر جديد · يدعم العربية والإنجليزية</div>
+          <div id="php-files-list" style="display:none;margin-top:6px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;max-height:140px;overflow-y:auto"></div>
+        </div>
+        <div class="field-block">
+          <label>📦 Dependencies File <span style="color:var(--text3);font-weight:400">(e.g. composer.json)</span></label>
+          <input id="php-deps" placeholder="composer.json (auto-detect)">
+        </div>
+        <div class="field-block">
+          <label>🔌 Port <span style="color:var(--text3);font-weight:400">(optional — auto if empty)</span></label>
+          <input id="php-port" type="number" placeholder="auto">
+        </div>
+        <div class="field-block" style="grid-column:1/-1">
+          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px" id="php-cmd-preview">
+            <div style="font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:.8px">📋 Install & Run Commands Preview</div>
+            <div id="php-install-cmd" style="font-family:monospace;font-size:12px;color:#79c0ff;padding:4px 0">— اضغط Preview لعرض الأوامر —</div>
+            <div id="php-run-cmd" style="font-family:monospace;font-size:12px;color:#7ee787;padding:4px 0"></div>
           </div>
         </div>
       </div>
-
-      <!-- ===== DATABASES TAB ===== -->
-      <div class="tab-content" id="tab-databases">
-        <div class="section-card">
-          <div class="section-head">🗄 إنشاء قاعدة بيانات</div>
-          <div class="section-body">
-            <p style="color:var(--text2);font-size:13px;margin-bottom:12px;font-weight:600">إدارة وإنشاء قواعد بيانات SQLite / JSON داخل مجلد اللوحة الخاص بك.</p>
-            <div class="field-block"><label>اسم قاعدة البيانات (Database Name)</label><input id="db-name" placeholder="my_database" dir="ltr"></div>
-            <div class="row-end"><button class="btn-action" onclick="createDB()">إنشاء قاعدة بيانات</button></div>
-          </div>
-        </div>
-        <div id="db-list"></div>
+      <div class="row-end" style="gap:8px">
+        <button class="btn-action gray" onclick="previewPhpCmd()">👁 Preview Commands</button>
+        <button class="btn-action orange" onclick="startPhpServer()">▶ Start PHP Server</button>
       </div>
-
-      <!-- ===== SCHEDULES TAB ===== -->
-      <div class="tab-content" id="tab-schedules">
-        <div class="section-card">
-          <div class="section-head">⏰ إنشاء جدول (Cron Schedule)</div>
-          <div class="section-body">
-            <div class="field-block"><label>اسم الجدول (Name)</label><input id="sch-name" placeholder="Daily backup" dir="ltr"></div>
-            <div class="field-block"><label>الأمر المراد تنفيذه (Command)</label><input id="sch-cmd" placeholder="python3 script.py" dir="ltr"></div>
-            <div class="field-block"><label>تعبير الكرون (Cron Expression)</label><input id="sch-cron" value="* * * * *" dir="ltr"></div>
-            <div class="row-end"><button class="btn-action" onclick="addSchedule()">إضافة الجدول</button></div>
-          </div>
-        </div>
-        <div id="sch-list"></div>
-      </div>
-
-      <div class="tab-content" id="tab-nodejs">
-        <div class="section-card">
-          <div class="section-head">🟢 تشغيل مشاريع Node.js</div>
-          <div class="section-body">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-              <div class="field-block" style="grid-column:1/-1">
-                <label>📁 مسار المشروع (Project Path)</label>
-                <input id="nodejs-path" placeholder="/panel_data/users_data/myuser/myproject" dir="ltr">
-              </div>
-              <div class="field-block">
-                <label>📄 الملف الرئيسي <span style="color:var(--text3);font-weight:400">(e.g. index.js, src/app.js)</span></label>
-                <div style="display:flex;gap:6px;align-items:center">
-                  <input id="nodejs-main" placeholder="auto-detect" style="flex:1" dir="ltr">
-                  <button class="btn-action gray" style="font-size:11px;white-space:nowrap" onclick="loadNodeJsFiles()">📂 تصفح</button>
-                </div>
-                <div id="nodejs-files-list" style="display:none;margin-top:6px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;max-height:140px;overflow-y:auto"></div>
-              </div>
-              <div class="field-block">
-                <label>📦 ملف الحزم <span style="color:var(--text3);font-weight:400">(e.g. package.json)</span></label>
-                <input id="nodejs-deps" placeholder="package.json (default)" dir="ltr">
-              </div>
-              <div class="field-block">
-                <label>🔌 المنفذ (Port) <span style="color:var(--text3);font-weight:400">(اختياري)</span></label>
-                <input id="nodejs-port" type="number" placeholder="auto" dir="ltr">
-              </div>
-              <div class="field-block" style="grid-column:1/-1">
-                <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;display:none" id="nodejs-cmd-preview">
-                  <div style="font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:.8px">📋 معاينة أوامر التشغيل</div>
-                  <div id="nodejs-install-cmd" style="font-family:monospace;font-size:12px;color:#79c0ff;padding:4px 0" dir="ltr"></div>
-                  <div id="nodejs-run-cmd" style="font-family:monospace;font-size:12px;color:#7ee787;padding:4px 0" dir="ltr"></div>
-                </div>
-              </div>
-            </div>
-            <div class="row-end" style="gap:8px">
-              <button class="btn-action gray" onclick="previewNodeCmd()">👁 معاينة الأوامر</button>
-              <button class="btn-action green" onclick="startNodeProject()">▶ تشغيل Node.js</button>
-            </div>
-            <div id="nodejs-start-output" style="display:none;margin-top:10px;background:#010409;border:1px solid var(--border);border-radius:6px;padding:10px;font-family:monospace;font-size:11px;color:#7ee787;max-height:120px;overflow-y:auto;white-space:pre-wrap" dir="ltr"></div>
-          </div>
-        </div>
-        <div id="nodejs-list"></div>
-      </div>
-
-      <div class="tab-content" id="tab-php">
-        <div class="section-card">
-          <div class="section-head">🐘 تشغيل سيرفر PHP</div>
-          <div class="section-body">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-              <div class="field-block" style="grid-column:1/-1">
-                <label>📁 مسار مجلد PHP الأساسي</label>
-                <input id="php-path" placeholder="/panel_data/users_data/myuser/mysite" dir="ltr">
-              </div>
-              <div class="field-block">
-                <label>📄 الملف الرئيسي <span style="color:var(--text3);font-weight:400">(e.g. index.php)</span></label>
-                <div style="display:flex;gap:6px;align-items:center">
-                  <input id="php-main" placeholder="index.php (default)" style="flex:1" dir="ltr">
-                  <button class="btn-action gray" style="font-size:11px;white-space:nowrap" onclick="loadPhpFiles()">📂 تصفح</button>
-                </div>
-                <div id="php-files-list" style="display:none;margin-top:6px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;max-height:140px;overflow-y:auto"></div>
-              </div>
-              <div class="field-block">
-                <label>📦 ملف الحزم <span style="color:var(--text3);font-weight:400">(e.g. composer.json)</span></label>
-                <input id="php-deps" placeholder="composer.json (auto-detect)" dir="ltr">
-              </div>
-              <div class="field-block">
-                <label>🔌 المنفذ (Port) <span style="color:var(--text3);font-weight:400">(اختياري)</span></label>
-                <input id="php-port" type="number" placeholder="auto" dir="ltr">
-              </div>
-              <div class="field-block" style="grid-column:1/-1">
-                <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px" id="php-cmd-preview">
-                  <div style="font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:.8px">📋 معاينة أوامر التشغيل</div>
-                  <div id="php-install-cmd" style="font-family:monospace;font-size:12px;color:#79c0ff;padding:4px 0" dir="ltr">— اضغط معاينة لعرض الأوامر —</div>
-                  <div id="php-run-cmd" style="font-family:monospace;font-size:12px;color:#7ee787;padding:4px 0" dir="ltr"></div>
-                </div>
-              </div>
-            </div>
-            <div class="row-end" style="gap:8px">
-              <button class="btn-action gray" onclick="previewPhpCmd()">👁 معاينة الأوامر</button>
-              <button class="btn-action orange" onclick="startPhpServer()">▶ تشغيل PHP</button>
-            </div>
-            <div id="php-start-output" style="display:none;margin-top:10px;background:#010409;border:1px solid var(--border);border-radius:6px;padding:10px;font-family:monospace;font-size:11px;color:#7ee787;max-height:120px;overflow-y:auto;white-space:pre-wrap" dir="ltr"></div>
-          </div>
-        </div>
-        <div id="php-list"></div>
-      </div>
+      <div id="php-start-output" style="display:none;margin-top:10px;background:#010409;border:1px solid var(--border);border-radius:6px;padding:10px;font-family:monospace;font-size:11px;color:#7ee787;max-height:120px;overflow-y:auto;white-space:pre-wrap"></div>
+    </div>
+  </div>
+  <div id="php-list"></div>
+</div>
 
 ''' + (r'''
-      <div class="tab-content" id="tab-users">
-        <div class="section-card">
-          <div class="section-head">👤 إضافة مستخدم جديد</div>
-          <div class="section-body">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-              <div class="field-block"><label>اسم المستخدم (Username)</label><input id="u-name" placeholder="username" dir="ltr"></div>
-              <div class="field-block"><label>كلمة المرور (Password)</label><input id="u-pass" type="password" placeholder="password" dir="ltr"></div>
-              <div class="field-block"><label>🔵 معرف التيليجرام</label><input id="u-tg" placeholder="@username" dir="ltr"></div>
-              <div class="field-block"><label>خطة الاشتراك (Plan)</label>
-                <select id="u-plan" style="width:100%;padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px" onchange="onPlanChange()">
-                  <option value="free_trial">🆓 تجربة مجانية — 7 أيام</option>
-                  <option value="paid_20">⭐ مدفوع 20 يوم — 15 نجمة</option>
-                  <option value="paid_30">💎 مدفوع 30 يوم — 25 نجمة</option>
-                  <option value="custom">🎯 مخصص (Custom)</option>
-                </select>
-              </div>
-              <div class="field-block" id="u-custom-days-wrap" style="display:none"><label>عدد الأيام المخصصة</label><input id="u-days" type="number" value="7" min="1" dir="ltr"></div>
-              <div class="field-block"><label>أقصى عدد للجلسات</label><input id="u-max" type="number" value="1" dir="ltr"></div>
-              <div class="field-block"><label>أقصى عدد للسيرفرات</label>
-                <select id="u-maxsrv" style="width:100%;padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px">
-                  <option value="1">1 سيرفر</option><option value="2">2 سيرفرات</option>
-                  <option value="3">3 سيرفرات</option><option value="5">5 سيرفرات</option>
-                  <option value="10">10 سيرفرات</option><option value="999">لا محدود</option>
-                </select>
-              </div>
-              <div class="field-block"><label>الملف الرئيسي (Main File)</label><input id="u-main" value="main.py" dir="ltr"></div>
-            </div>
-            <div class="row-end"><button class="btn-action" onclick="addUser()">إضافة المستخدم</button></div>
-          </div>
+<!-- ===== USERS TAB (master only) ===== -->
+<div class="tab-content" id="tab-users">
+  <div class="section-card">
+    <div class="section-head">👤 Add User</div>
+    <div class="section-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="field-block"><label>Username</label><input id="u-name" placeholder="username"></div>
+        <div class="field-block"><label>Password</label><input id="u-pass" type="password" placeholder="password"></div>
+        <div class="field-block"><label>🔵 Telegram Username</label><input id="u-tg" placeholder="@username"></div>
+        <div class="field-block"><label>Plan</label>
+          <select id="u-plan" style="width:100%;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px" onchange="onPlanChange()">
+            <option value="free_trial">🆓 Free Trial — 7 أيام</option>
+            <option value="paid_20">⭐ Paid 20 يوم — 15 نجمة</option>
+            <option value="paid_30">💎 Paid 30 يوم — 25 نجمة</option>
+            <option value="custom">🎯 Custom</option>
+          </select>
         </div>
-        <div id="users-list"></div>
-
-        <div class="modal" id="edit-user-modal">
-          <div class="modal-box">
-            <div class="modal-head"><h3>تعديل المستخدم</h3><button class="close" onclick="closeModal('edit-user-modal')">×</button></div>
-            <div class="modal-body">
-              <input type="hidden" id="eu-name">
-              <div class="field-block"><label>كلمة مرور جديدة (New Password)</label><input id="eu-pass" type="password" placeholder="(اتركه فارغاً لعدم التغيير)" dir="ltr"></div>
-              <div class="field-block"><label>أقصى عدد للجلسات (Max Sessions)</label><input id="eu-max" type="number" dir="ltr"></div>
-              <div class="field-block"><label>أقصى عدد للسيرفرات (Max Servers)</label>
-                <select id="eu-maxsrv" style="width:100%;padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px">
-                  <option value="1">1</option><option value="2">2</option><option value="3">3</option>
-                  <option value="5">5</option><option value="10">10</option><option value="999">Unlimited</option>
-                </select>
-              </div>
-              <div class="field-block"><label>الملف الرئيسي (Main File)</label><input id="eu-main" dir="ltr"></div>
-              <div class="field-block"><label>تمديد الاشتراك بالأيام</label><input id="eu-days" type="number" value="30" min="1" dir="ltr"></div>
-            </div>
-            <div class="modal-foot">
-              <button class="btn-action gray" onclick="closeModal('edit-user-modal')">إلغاء</button>
-              <button class="btn-action" onclick="saveEditUser()">حفظ التعديلات</button>
-            </div>
-          </div>
+        <div class="field-block" id="u-custom-days-wrap" style="display:none"><label>Custom Days</label><input id="u-days" type="number" value="7" min="1"></div>
+        <div class="field-block"><label>Max Sessions</label><input id="u-max" type="number" value="1"></div>
+        <div class="field-block"><label>Max Servers</label>
+          <select id="u-maxsrv" style="width:100%;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px">
+            <option value="1">1 Server</option><option value="2">2 Servers</option>
+            <option value="3">3 Servers</option><option value="5">5 Servers</option>
+            <option value="10">10 Servers</option><option value="999">Unlimited</option>
+          </select>
         </div>
+        <div class="field-block"><label>Main File</label><input id="u-main" value="main.py"></div>
       </div>
+      <div class="row-end"><button class="btn-action" onclick="addUser()">Add User</button></div>
+    </div>
+  </div>
+  <div id="users-list"></div>
 
-      <div class="tab-content" id="tab-backups">
-        <div class="section-card">
-          <div class="section-head">💾 النسخ الاحتياطية (Backups)</div>
-          <div class="section-body">
-            <div style="display:flex;gap:8px;margin-bottom:12px">
-              <button class="btn-action green" onclick="createBackup()">➕ إنشاء نسخة احتياطية</button>
-              <button class="btn-action gray" onclick="loadBackups()">🔄 تحديث القائمة</button>
-            </div>
-            <div id="backups-list"></div>
-          </div>
+  <!-- Edit Modal -->
+  <div class="modal" id="edit-user-modal">
+    <div class="modal-box">
+      <div class="modal-head"><h3>Edit User</h3><button class="close" onclick="closeModal('edit-user-modal')">×</button></div>
+      <div class="modal-body">
+        <input type="hidden" id="eu-name">
+        <div class="field-block"><label>New Password</label><input id="eu-pass" type="password" placeholder="(leave blank to keep)"></div>
+        <div class="field-block"><label>Max Sessions</label><input id="eu-max" type="number"></div>
+        <div class="field-block"><label>Max Servers</label>
+          <select id="eu-maxsrv" style="width:100%;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px">
+            <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+            <option value="5">5</option><option value="10">10</option><option value="999">Unlimited</option>
+          </select>
         </div>
+        <div class="field-block"><label>Main File</label><input id="eu-main"></div>
+        <div class="field-block"><label>Extend Subscription (days)</label><input id="eu-days" type="number" value="30" min="30"></div>
       </div>
+      <div class="modal-foot">
+        <button class="btn-action gray" onclick="closeModal('edit-user-modal')">Cancel</button>
+        <button class="btn-action" onclick="saveEditUser()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
 
-      <div class="tab-content" id="tab-network">
-        <div class="section-card">
-          <div class="section-head">🔌 إدارة المنافذ الإضافية</div>
-          <div class="section-body">
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-              <input id="new-port" type="number" placeholder="Port (e.g. 8080)" dir="ltr" style="padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;width:160px">
-              <input id="new-port-note" placeholder="ملاحظة (اختياري)" style="padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;flex:1;min-width:120px">
-              <button class="btn-action" onclick="addPort()">إضافة منفذ</button>
-            </div>
-            <div id="ports-list"></div>
-          </div>
-        </div>
-        <div class="section-card">
-          <div class="section-head">🔍 فحص المنافذ (Port Scanner)</div>
-          <div class="section-body">
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <input id="scan-host" placeholder="Host (e.g. 127.0.0.1)" dir="ltr" style="padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;flex:1">
-              <input id="scan-ports" placeholder="Ports (22,80,443,8080)" dir="ltr" style="padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;flex:1">
-              <button class="btn-action" onclick="scanPorts()">فحص</button>
-            </div>
-            <div id="scan-results" style="margin-top:12px" dir="ltr"></div>
-          </div>
-        </div>
+<!-- ===== BACKUPS TAB ===== -->
+<div class="tab-content" id="tab-backups">
+  <div class="section-card">
+    <div class="section-head">💾 Backups</div>
+    <div class="section-body">
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button class="btn-action green" onclick="createBackup()">➕ Create Backup</button>
+        <button class="btn-action gray" onclick="loadBackups()">🔄 Refresh</button>
       </div>
+      <div id="backups-list"></div>
+    </div>
+  </div>
+</div>
 
-      <div class="tab-content" id="tab-startup">
-        <div class="section-card">
-          <div class="section-head">🚀 التشغيل التلقائي (Startup)</div>
-          <div class="section-body">
-            <div class="field-block"><label>الملف الأساسي للتشغيل</label><input id="startup-file" placeholder="main.py" dir="ltr"></div>
-            <button class="btn-action" onclick="setStartupFile()">حفظ ملف التشغيل</button>
-          </div>
-        </div>
-        <div class="section-card">
-          <div class="section-head">📦 إدارة الحزم (Package Manager)</div>
-          <div class="section-body">
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <input id="pip-pkg" placeholder="pip package name" dir="ltr" style="padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;flex:1">
-              <button class="btn-action orange" onclick="installPip()">تثبيت بـ pip</button>
-            </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
-              <input id="npm-pkg" placeholder="npm package name" dir="ltr" style="padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;flex:1">
-              <button class="btn-action green" onclick="installNpm()">تثبيت بـ npm</button>
-            </div>
-          </div>
-        </div>
+<!-- ===== NETWORK TAB ===== -->
+<div class="tab-content" id="tab-network">
+  <div class="section-card">
+    <div class="section-head">🔌 Extra Ports</div>
+    <div class="section-body">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+        <input id="new-port" type="number" placeholder="Port (e.g. 8080)" style="padding:9px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;width:160px">
+        <input id="new-port-note" placeholder="Note (optional)" style="padding:9px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;flex:1;min-width:120px">
+        <button class="btn-action" onclick="addPort()">Add Port</button>
       </div>
+      <div id="ports-list"></div>
+    </div>
+  </div>
+  <div class="section-card">
+    <div class="section-head">🔍 Port Scanner</div>
+    <div class="section-body">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input id="scan-host" placeholder="Host (e.g. 127.0.0.1)" style="padding:9px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;flex:1">
+        <input id="scan-ports" placeholder="Ports (22,80,443,8080)" style="padding:9px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;flex:1">
+        <button class="btn-action" onclick="scanPorts()">Scan</button>
+      </div>
+      <div id="scan-results" style="margin-top:12px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== STARTUP TAB ===== -->
+<div class="tab-content" id="tab-startup">
+  <div class="section-card">
+    <div class="section-head">🚀 Startup / Auto-Start</div>
+    <div class="section-body">
+      <div class="field-block"><label>Main Startup File</label><input id="startup-file" placeholder="main.py"></div>
+      <button class="btn-action" onclick="setStartupFile()">Set Startup File</button>
+    </div>
+  </div>
+  <div class="section-card">
+    <div class="section-head">📦 Package Manager</div>
+    <div class="section-body">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input id="pip-pkg" placeholder="pip package name" style="padding:9px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;flex:1">
+        <button class="btn-action orange" onclick="installPip()">pip install</button>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <input id="npm-pkg" placeholder="npm package name" style="padding:9px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;flex:1">
+        <button class="btn-action green" onclick="installNpm()">npm install</button>
+      </div>
+    </div>
+  </div>
+</div>
 ''' if is_master else '') + r'''
 
-      <div class="tab-content" id="tab-settings">
-        <div class="section-card">
-          <div class="section-head">🔒 تغيير كلمة المرور</div>
-          <div class="section-body">
-            <div class="field-block"><label>كلمة المرور الحالية</label><input id="cur-pass" type="password" placeholder="Current password" dir="ltr"></div>
-            <div class="field-block"><label>كلمة المرور الجديدة</label><input id="new-pass" type="password" placeholder="New password" dir="ltr"></div>
-            <div class="row-end"><button class="btn-action" onclick="changePassword()">تغيير كلمة المرور</button></div>
-          </div>
-        </div>
-        <div class="section-card">
-          <div class="section-head">🖥 معلومات النظام (System Info)</div>
-          <div class="section-body">
-            <pre id="sysinfo-box" style="color:var(--text2);font-size:12px;font-family:monospace;white-space:pre-wrap" dir="ltr"></pre>
-            <div class="row-end"><button class="btn-action gray" onclick="loadSysinfo()">🔄 تحديث المعلومات</button></div>
-          </div>
-        </div>
-      </div>
+<!-- ===== SETTINGS TAB ===== -->
+<div class="tab-content" id="tab-settings">
+  <div class="section-card">
+    <div class="section-head">🔒 Change Password</div>
+    <div class="section-body">
+      <div class="field-block"><label>Current Password</label><input id="cur-pass" type="password" placeholder="Current password"></div>
+      <div class="field-block"><label>New Password</label><input id="new-pass" type="password" placeholder="New password"></div>
+      <div class="row-end"><button class="btn-action" onclick="changePassword()">Change Password</button></div>
+    </div>
+  </div>
+  <div class="section-card">
+    <div class="section-head">🖥 System Info</div>
+    <div class="section-body">
+      <pre id="sysinfo-box" style="color:var(--text2);font-size:12px;font-family:monospace;white-space:pre-wrap"></pre>
+      <div class="row-end"><button class="btn-action gray" onclick="loadSysinfo()">🔄 Refresh</button></div>
+    </div>
+  </div>
+</div>
 
-      <div class="tab-content" id="tab-activity">
-        <div class="section-card">
-          <div class="section-head">📋 سجل الأنشطة (Activity Feed)</div>
-          <div class="section-body">
-            <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
-              <button class="btn-action gray" onclick="loadActivity()">🔄 تحديث السجل</button>
-            </div>
-            <div id="activity-list" dir="ltr"></div>
-          </div>
-        </div>
+<!-- ===== ACTIVITY TAB ===== -->
+<div class="tab-content" id="tab-activity">
+  <div class="section-card">
+    <div class="section-head">📋 Activity Feed</div>
+    <div class="section-body">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+        <button class="btn-action gray" onclick="loadActivity()">🔄 Refresh</button>
       </div>
+      <div id="activity-list"></div>
+    </div>
+  </div>
+</div>
 
 ''' + owner_panel_html + r'''
 
-    </div></main>
-</div><div class="modal" id="editor-modal">
-  <div class="modal-box" style="width:min(900px, 95vw)">
+</div><!-- /container -->
+
+<!-- EDITOR MODAL -->
+<div class="modal" id="editor-modal">
+  <div class="modal-box" style="max-width:800px;width:95vw">
     <div class="modal-head">
-      <h3 id="editor-title">تعديل الملف</h3>
+      <h3 id="editor-title">Edit File</h3>
       <button class="close" onclick="closeModal('editor-modal')">×</button>
     </div>
     <div class="modal-body">
-      <textarea class="editor-box" id="editor-content" spellcheck="false" dir="ltr"></textarea>
+      <textarea class="editor-box" id="editor-content" spellcheck="false"></textarea>
     </div>
     <div class="modal-foot">
-      <button class="btn-action gray" onclick="closeModal('editor-modal')">إلغاء</button>
-      <button class="btn-action" onclick="saveFile()">💾 حفظ التعديلات</button>
+      <button class="btn-action gray" onclick="closeModal('editor-modal')">Cancel</button>
+      <button class="btn-action" onclick="saveFile()">💾 Save</button>
     </div>
   </div>
 </div>
 
+<!-- SERVERS MODAL -->
 <div class="modal" id="servers-modal">
   <div class="modal-box">
-    <div class="modal-head">
-      <h3>🗂 السيرفرات المتصلة</h3>
-      <button class="close" onclick="closeModal('servers-modal')">×</button>
-    </div>
-    <div class="modal-body" id="servers-modal-list" style="max-height:400px;overflow-y:auto" dir="ltr"></div>
-    <div class="modal-foot">
-      <button class="btn-action gray" onclick="closeModal('servers-modal')">إغلاق</button>
-    </div>
+    <div class="modal-head"><h3>🗂 Servers</h3><button class="close" onclick="closeModal('servers-modal')">×</button></div>
+    <div class="modal-body" id="servers-modal-list" style="max-height:400px;overflow-y:auto"></div>
+    <div class="modal-foot"><button class="btn-action gray" onclick="closeModal('servers-modal')">Close</button></div>
   </div>
 </div>
 
+<!-- EXTRACT MODAL -->
 <div class="modal" id="extract-modal">
   <div class="modal-box">
-    <div class="modal-head">
-      <h3>📦 استخراج الملف المضغوط</h3>
-      <button class="close" onclick="closeModal('extract-modal')">×</button>
-    </div>
+    <div class="modal-head"><h3>📦 Extract Archive</h3><button class="close" onclick="closeModal('extract-modal')">×</button></div>
     <div class="modal-body">
       <input type="hidden" id="extract-src">
-      <div class="field-block">
-        <label>استخراج إلى مجلد (اختياري)</label>
-        <input id="extract-dest" placeholder="(يتم الاستخراج في نفس المسار الافتراضي)" dir="ltr">
-      </div>
+      <div class="field-block"><label>Extract to folder</label><input id="extract-dest" placeholder="(same directory)"></div>
     </div>
     <div class="modal-foot">
-      <button class="btn-action gray" onclick="closeModal('extract-modal')">إلغاء</button>
-      <button class="btn-action" onclick="doExtract()">📦 استخراج الآن</button>
+      <button class="btn-action gray" onclick="closeModal('extract-modal')">Cancel</button>
+      <button class="btn-action" onclick="doExtract()">📦 Extract</button>
     </div>
   </div>
 </div>
 
 <script>
-// ─── إعدادات اللوحة الأساسية ───
+// ─── Config ───
 const IS_MASTER = ''' + ('true' if is_master else 'false') + r''';
 var USER_PATH = '';
 var currentPath = '';
 var currentEditPath = null;
 var statsInterval = null;
 
-// ─── محرك الترمنال المتعدد (Multi-Terminal State) ───
+// ─── Multi-Terminal State ──────────────────────────────────────────────────
 var terminals = {};          // tid -> { processId, history, histIdx, interval, dir }
 var activeTerminalId = null;
 var terminalCounter = 0;
@@ -2909,7 +2410,7 @@ function createTerminalState(tid){
   };
 }
 
-// دعم الأكواد القديمة (Legacy shims)
+// legacy shims so old code still works
 Object.defineProperty(window, 'currentProcessId', {
   get(){ return activeTerminalId ? terminals[activeTerminalId]?.processId : null; },
   set(v){ if(activeTerminalId && terminals[activeTerminalId]) terminals[activeTerminalId].processId = v; }
@@ -2927,26 +2428,25 @@ Object.defineProperty(window, 'consoleInterval', {
   set(v){ if(activeTerminalId && terminals[activeTerminalId]) terminals[activeTerminalId].interval = v; }
 });
 
-// ─── نظام الإشعارات (Toast) ───
+// ─── Toast ───
 function toast(msg, isErr=false, isInfo=false){
-  const c = document.getElementById('toast-container');
-  const t = document.createElement('div');
-  t.className = 'toast ' + (isErr ? 'err' : isInfo ? 'info' : 'ok');
-  t.innerHTML = `${isErr ? '❌' : isInfo ? 'ℹ️' : '✅'} ${msg}`;
+  const c=document.getElementById('toast-container');
+  const t=document.createElement('div');
+  t.className='toast '+(isErr?'err':isInfo?'info':'ok');
+  t.textContent=msg;
   c.appendChild(t);
-  setTimeout(()=> t.remove(), 3500);
+  setTimeout(()=>t.remove(), 3500);
 }
 
-// ─── نظام التبديل بين التبويبات (Tab Switching) ───
+// ─── Tab switching ───
 document.querySelectorAll('.tab-item').forEach(tab=>{
-  tab.addEventListener('click', ()=>{
-    const id = tab.dataset.tab;
-    document.querySelectorAll('.tab-item').forEach(t=> t.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(c=> c.classList.remove('active'));
+  tab.addEventListener('click',()=>{
+    const id=tab.dataset.tab;
+    document.querySelectorAll('.tab-item').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
     tab.classList.add('active');
     document.getElementById('tab-'+id).classList.add('active');
-    
-    // تحميل البيانات عند فتح التبويب لتخفيف الضغط
+    // lazy loaders
     if(id==='users') loadUsers();
     if(id==='backups') loadBackups();
     if(id==='network') loadPorts();
@@ -2957,17 +2457,17 @@ document.querySelectorAll('.tab-item').forEach(tab=>{
   });
 });
 
-// ─── أدوات مساعدة للنوافذ المنبثقة ───
+// ─── Modal helpers ───
 function openModal(id){ document.getElementById(id).classList.add('open'); }
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 document.querySelectorAll('.modal').forEach(m=>{
-  m.addEventListener('click', e=>{ if(e.target===m) m.classList.remove('open'); });
+  m.addEventListener('click',e=>{ if(e.target===m) m.classList.remove('open'); });
 });
 
-// ─── حماية النصوص (Escape HTML) ───
-function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+// ─── Escape HTML ───
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
-// ─── التحديث الحي لإحصائيات السيرفر (Stats Polling) ───
+// ─── Stats polling ───
 async function loadStats(){
   try{
     const r = await fetch('/api/system');
@@ -2991,12 +2491,12 @@ async function loadStats(){
 
 async function loadProfile(){
   try{
-    const r = await fetch('/api/profile');
-    const d = await r.json();
+    const r=await fetch('/api/profile');
+    const d=await r.json();
     USER_PATH = d.user_path || '';
     currentPath = USER_PATH;
     document.getElementById('topbar-user').textContent = d.username || '';
-    // تحديث روابط الويب والـ API
+    // update web/api links
     document.getElementById('web-link').textContent = '/web/'+d.username+'/';
     document.getElementById('api-link').textContent = '/api-service/'+d.username+'/';
   }catch(e){}
@@ -3007,10 +2507,10 @@ function openApiLink(){ window.open('/api-service/'+(document.getElementById('to
 
 function copyPort(){
   const p = document.getElementById('port-display').textContent;
-  navigator.clipboard.writeText(p).then(()=> toast('تم نسخ المنفذ: '+p, false, true));
+  navigator.clipboard.writeText(p).then(()=>toast('Port copied: '+p));
 }
 
-// ─── التحكم في التشغيل (Power / Process) ───
+// ─── Power / Process ───
 async function powerAction(action){
   if(action==='start'){
     let mainFile = 'main.py';
@@ -3022,8 +2522,7 @@ async function powerAction(action){
     if(!currentPath){
       try{ const p=await fetch('/api/profile').then(r=>r.json()); currentPath=p.user_path||''; }catch(e){}
     }
-    // تحديث الهوية في مخرجات الترمنال الوهمية
-    appendConsole('┌──(runner㉿dev-riko)-[~]');
+    appendConsole('┌──(R I K O ㉿server-hub)-[~]');
     appendConsole('└─$ python3 ' + mainFile + '  ▶ Starting...');
     try {
       const r = await fetch('/api/file/run', {method:'POST', headers:{'Content-Type':'application/json'},
@@ -3033,15 +2532,15 @@ async function powerAction(action){
         currentProcessId = d.process_id;
         setProcStatus(true);
         appendConsole('[✔] Process started — ID: ' + d.process_id);
-        toast('▶ تم التشغيل: ' + mainFile, false, true);
+        toast('▶ Started: '+mainFile);
         startConsolePolling();
       } else {
         appendConsole('[✘] ERROR: ' + (d.error||'Failed to start'));
-        toast('❌ ' + (d.error||'فشل التشغيل'), true);
+        toast('❌ '+(d.error||'Failed'), true);
       }
     } catch(e) {
       appendConsole('[✘] Network error: ' + (e.message||e));
-      toast('❌ خطأ في الاتصال', true);
+      toast('❌ Network error', true);
     }
   } else if(action==='stop'){
     if(!currentProcessId){ toast('لا يوجد بروسيس شغال حالياً', true); return; }
@@ -3055,7 +2554,7 @@ async function powerAction(action){
     }
     currentProcessId = null;
     setProcStatus(false);
-    toast('■ تم الإيقاف', false, true);
+    toast('■ Stopped');
     stopConsolePolling();
   } else if(action==='restart'){
     appendConsole('└─$ ↺ Restarting...');
@@ -3069,35 +2568,31 @@ async function powerAction(action){
       stopConsolePolling();
       appendConsole('[✔] Stopped — restarting in 800ms...');
     }
-    setTimeout(()=> powerAction('start'), 800);
+    setTimeout(()=>powerAction('start'), 800);
   }
 }
 
 function setProcStatus(running){
-  const dot = document.getElementById('proc-dot');
-  const txt = document.getElementById('proc-status');
+  const dot=document.getElementById('proc-dot');
+  const txt=document.getElementById('proc-status');
   dot.style.background = running ? '#3fb950' : '#f85149';
   txt.textContent = running ? 'Running' : 'Stopped';
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  MULTI-TERMINAL ENGINE — DEVELOPED BY RIKO
+//  MULTI-TERMINAL ENGINE
 // ═══════════════════════════════════════════════════════════════════════════
 
 function terminalBannerHTML(tid){
-  return `<div style="line-height:1.6;margin-bottom:12px;user-select:none">
+  return `<div style="line-height:1.5;margin-bottom:8px;user-select:none">
   <div style="font-family:'Fira Code',monospace;font-size:16px;font-weight:900;letter-spacing:3px;
-    background:linear-gradient(90deg,var(--accent),var(--accent2),var(--accent));-webkit-background-clip:text;
-    -webkit-text-fill-color:transparent;margin-bottom:4px">▪ 𝚁𝙸𝙺𝙾 ▪</div>
-  <div style="color:var(--accent);font-family:'Fira Code',monospace;font-size:11px;opacity:0.85;line-height:1.2">
-    ╔══════════════════════════════════════════════════╗<br>
-    ║  🚀 <span style="color:var(--accent2);font-weight:700">SERVER HUB v2.0</span> — Professional Panel       ║<br>
-    ║  👑 Developer : <span style="color:#fff;font-weight:600">@SHBH_S1</span>                         ║<br>
-    ║  📢 Channel   : <span style="color:var(--yellow);font-weight:600">@SHOBING_HXH</span>                       ║<br>
-    ╚══════════════════════════════════════════════════╝
-  </div>
-  <div style="color:var(--green);font-family:monospace;font-size:12px;margin-top:8px">┌──(<span style="color:var(--neon);font-weight:700">riko</span>㉿<span style="color:var(--accent2)">serverhub</span>)-[<span style="color:var(--yellow)">~</span>]</div>
-  <div style="color:var(--green);font-family:monospace;font-size:12px">└─<span style="color:var(--neon);font-weight:700">$</span> <span style="color:var(--text)">👋 الترمنال #${tid} جاهز للعمل — يدعم العربي والإنجليزي ✓</span></div>
+    background:linear-gradient(90deg,#a855f7,#00bfff,#a855f7);-webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;margin-bottom:3px">▪ R I K O ▪</div>
+  <div style="color:#a855f7;font-family:monospace;font-size:11px">╔══════════════════════════════════════════╗</div>
+  <div style="color:#a855f7;font-family:monospace;font-size:11px">║  🚀 <span style="color:#00ffff;font-weight:700">R I K O</span>  SERVER HUB v2.0 — SHBH_S1  ║</div>
+  <div style="color:#a855f7;font-family:monospace;font-size:11px">╚══════════════════════════════════════════╝</div>
+  <div style="color:#00ff41;font-family:monospace;font-size:12px;margin-top:5px">┌──(<span style="color:#ff3399;font-weight:700">runner</span>㉿<span style="color:#00bfff">serverhub</span>)-[<span style="color:#ffff00">~</span>]</div>
+  <div style="color:#00ff41;font-family:monospace;font-size:12px">└─<span style="color:#ff3399;font-weight:700">$</span> <span style="color:#c9d1d9">👋 الترمنال #${tid} جاهز — العربي والإنجليزي مدعومان ✓</span></div>
 </div>`;
 }
 
@@ -3111,8 +2606,6 @@ function buildTerminalEl(tid){
   box.id = `console-output-${tid}`;
   box.className = 'console-box';
   box.style.cursor = 'text';
-  box.style.padding = '16px';
-  box.style.minHeight = '300px';
   box.innerHTML = terminalBannerHTML(tid);
   box.addEventListener('click', ()=>{
     const inp = document.getElementById(`cmd-field-${tid}`);
@@ -3122,33 +2615,31 @@ function buildTerminalEl(tid){
   // fixed kali prompt footer inside box
   const footer = document.createElement('div');
   footer.id = `term-footer-${tid}`;
-  footer.style.cssText = 'color:var(--green);font-family:monospace;font-size:12px;margin-top:8px;pointer-events:none;user-select:none;border-top:1px solid var(--border);padding-top:6px';
-  footer.innerHTML = `┌──(<span style="color:var(--neon);font-weight:700">riko</span>㉿<span style="color:var(--accent2)">serverhub</span>)-[<span style="color:var(--yellow)" id="cwd-footer-${tid}">~</span>]<br>└─<span style="color:var(--neon);font-weight:700">$</span>`;
+  footer.style.cssText = 'color:#00ff41;font-family:monospace;font-size:12px;margin-top:6px;pointer-events:none;user-select:none;border-top:1px solid #1a1a2e;padding-top:4px';
+  footer.innerHTML = `┌──(<span style="color:#ff3399;font-weight:700">runner</span>㉿<span style="color:#00bfff">serverhub</span>)-[<span style="color:#ffff00" id="cwd-footer-${tid}">~</span>]<br>└─<span style="color:#ff3399;font-weight:700">$</span>`;
   box.appendChild(footer);
 
   // input row
   const cmdRow = document.createElement('div');
   cmdRow.className = 'cmd-input';
-  cmdRow.style.marginTop = '8px';
+  cmdRow.style.marginTop = '6px';
   cmdRow.innerHTML = `
     <div style="width:100%">
-      <div style="color:var(--green);font-family:monospace;font-size:11px;padding:4px 0;pointer-events:none;white-space:nowrap">
-        ┌──(<span style="color:var(--neon);font-weight:700">riko</span>㉿<span style="color:var(--accent2)">serverhub</span>)-[<span style="color:var(--yellow)" id="cwd-input-${tid}">~</span>]<br>
-        └─<span style="color:var(--neon);font-weight:700;font-size:13px">$</span>
+      <div style="color:#00ff41;font-family:monospace;font-size:11px;padding:3px 0 2px;pointer-events:none;white-space:nowrap">
+        ┌──(<span style="color:#ff3399;font-weight:700">runner</span>㉿<span style="color:#00bfff">serverhub</span>)-[<span style="color:#ffff00" id="cwd-input-${tid}">~</span>]<br>
+        └─<span style="color:#ff3399;font-weight:700;font-size:13px">$</span>
       </div>
-      <div style="display:flex;align-items:center;gap:8px">
+      <div style="display:flex;align-items:center;gap:6px">
         <input id="cmd-field-${tid}"
           dir="auto" lang="ar,en" inputmode="text"
           autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-          placeholder="اكتب الأمر هنا (عربي أو إنجليزي)..."
-          style="flex:1;background:none;border:0;outline:0;color:var(--text);padding:10px 0;
-                 font-family:'Fira Code',monospace;font-size:13.5px;direction:ltr;unicode-bidi:embed"
+          placeholder="اكتب أمر عربي أو إنجليزي..."
+          style="flex:1;background:none;border:0;outline:0;color:var(--text);padding:8px 0;
+                 font-family:'Fira Code',monospace;font-size:13px;direction:ltr;unicode-bidi:embed"
           onkeydown="termKeyDown(event,'${tid}')">
         <button onclick="termRunCmd('${tid}')"
-          style="padding:6px 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;
-                 color:var(--accent);cursor:pointer;font-size:13px;flex-shrink:0;transition:0.2s"
-          onmouseover="this.style.borderColor='var(--accent)'" 
-          onmouseout="this.style.borderColor='var(--border2)'">↵</button>
+          style="padding:5px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;
+                 color:var(--accent2);cursor:pointer;font-size:12px;flex-shrink:0">↵</button>
       </div>
     </div>`;
 
@@ -3165,13 +2656,12 @@ function addTerminal(){
   const tabsBar = document.getElementById('term-tabs-bar');
   const btn = document.createElement('div');
   btn.id = `term-tab-${tid}`;
-  btn.style.cssText = `display:flex;align-items:center;gap:6px;padding:6px 14px;background:var(--bg3);
-    border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:12.5px;
-    color:var(--text2);transition:.15s;white-space:nowrap;font-weight:500`;
-  btn.innerHTML = `<span style="color:var(--green);font-size:10px;animation:blink 2s infinite">●</span> ترمنال ${tid}
+  btn.style.cssText = `display:flex;align-items:center;gap:5px;padding:5px 12px;background:var(--bg3);
+    border:1px solid var(--border);border-radius:7px;cursor:pointer;font-size:12px;
+    color:var(--text2);transition:.15s;white-space:nowrap`;
+  btn.innerHTML = `<span style="color:#00ff41;font-size:10px">●</span> ترمنال ${tid}
     <span onclick="event.stopPropagation();closeTerminal('${tid}')"
-      style="color:var(--text3);margin-left:6px;font-size:16px;line-height:1;transition:0.2s" 
-      onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'" title="إغلاق">×</span>`;
+      style="color:#555;margin-left:4px;font-size:14px;line-height:1" title="إغلاق">×</span>`;
   btn.onclick = ()=> switchTerminal(tid);
   tabsBar.insertBefore(btn, tabsBar.lastElementChild);
 
@@ -3185,23 +2675,13 @@ function switchTerminal(tid){
     const w = document.getElementById(`term-wrap-${id}`);
     if(w) w.style.display='none';
     const t = document.getElementById(`term-tab-${id}`);
-    if(t){ 
-      t.style.borderColor='var(--border)'; 
-      t.style.color='var(--text2)'; 
-      t.style.background='var(--bg3)';
-      t.style.fontWeight='500';
-    }
+    if(t){ t.style.borderColor='var(--border)'; t.style.color='var(--text2)'; t.style.background='var(--bg3)'; }
   });
   activeTerminalId = tid;
   const w = document.getElementById(`term-wrap-${tid}`);
   if(w) w.style.display='block';
   const t = document.getElementById(`term-tab-${tid}`);
-  if(t){ 
-    t.style.borderColor='var(--accent)'; 
-    t.style.color='var(--accent)'; 
-    t.style.background='rgba(124,92,252,0.08)'; 
-    t.style.fontWeight='700';
-  }
+  if(t){ t.style.borderColor='var(--accent2)'; t.style.color='var(--accent2)'; t.style.background='rgba(168,85,247,.08)'; }
   setTimeout(()=>{ document.getElementById(`cmd-field-${tid}`)?.focus(); }, 50);
 }
 
@@ -3220,23 +2700,20 @@ function appendToTerminal(tid, txt){
   if(!box) return;
   const line = document.createElement('div');
   line.style.fontFamily = "'Fira Code',monospace";
-  line.style.fontSize   = '13px';
-  line.style.marginBottom = '2px';
+  line.style.fontSize   = '12.5px';
   line.dir              = 'auto';
   const t = txt||'';
-  
   if(/error|err:|exception|traceback|failed/i.test(t)){
-    line.style.color='var(--red)'; line.style.textShadow='0 0 6px rgba(248,81,73,.2)';
+    line.style.color='#ff3333'; line.style.textShadow='0 0 6px rgba(255,0,0,.3)';
   } else if(/warn|warning/i.test(t)){
-    line.style.color='var(--yellow)';
+    line.style.color='#ffcc00';
   } else if(/\[.\]|started|running|success/i.test(t)){
-    line.style.color='var(--green)'; line.style.textShadow='0 0 5px rgba(63,185,80,.1)';
+    line.style.color='#00ff41'; line.style.textShadow='0 0 5px rgba(0,255,65,.2)';
   } else if(t.startsWith('$')||t.startsWith('└─')||t.startsWith('┌──')){
-    line.style.color='var(--green)';
+    line.style.color='#00ff41';
   } else {
-    line.style.color='var(--text)';
+    line.style.color='#c9d1d9';
   }
-  
   line.textContent = t;
   const footer = document.getElementById(`term-footer-${tid}`);
   if(footer) box.insertBefore(line, footer);
@@ -3332,1971 +2809,925 @@ function stopConsolePolling(){
 }
 
 function initTerminals(){ addTerminal(); }
-
-// ═══════════════════════════════════════════════════════════════════════════
-//  PREMIUM FILE MANAGER ENGINE — DEVELOPED BY RIKO
-//  👑 Dev: @SHBH_S1 | 📢 Channel: @SHOBING_HXH
-// ═══════════════════════════════════════════════════════════════════════════
-
+// ─── FILES ───
 async function loadFiles(path){
   if(!path && !currentPath){
-    try {
-      const prof = await fetch('/api/profile').then(r=>r.json());
-      currentPath = prof.user_path || '';
-    } catch(e) { currentPath = ''; }
+    const prof=await fetch('/api/profile').then(r=>r.json());
+    currentPath = prof.user_path || '';
   }
   const p = path || currentPath;
   currentPath = p;
   try{
-    const r = await fetch('/api/files?path='+encodeURIComponent(p));
-    const d = await r.json();
+    const r=await fetch('/api/files?path='+encodeURIComponent(p));
+    const d=await r.json();
     renderFiles(d.files||[], p);
     renderBreadcrumb(p);
-  }catch(e){ toast('❌ فشل في تحميل الملفات', true); }
+  }catch(e){ toast('Failed to load files', true); }
 }
 
 function getFileIcon(name, isDir){
   if(isDir) return '📁';
-  const ext = name.split('.').pop().toLowerCase();
-  const m = {
-    py:'🐍', js:'📜', ts:'📜', jsx:'⚛️', tsx:'⚛️',
-    html:'🌐', htm:'🌐', css:'🎨', scss:'🎨',
-    json:'📋', yml:'⚙️', yaml:'⚙️', toml:'⚙️', ini:'⚙️',
-    md:'📝', txt:'📄', sh:'⚡', bash:'⚡',
-    zip:'📦', tar:'📦', gz:'📦', rar:'📦',
-    jpg:'🖼', jpeg:'🖼', png:'🖼', gif:'🖼', svg:'🖼',
-    mp4:'🎬', mp3:'🎵', pdf:'📕', php:'🐘', rb:'💎',
-    sql:'🗄', db:'🗄', sqlite:'🗄'
-  };
-  return m[ext] || '📄';
+  const ext=name.split('.').pop().toLowerCase();
+  const m={py:'🐍',js:'📜',ts:'📜',jsx:'⚛️',tsx:'⚛️',
+           html:'🌐',htm:'🌐',css:'🎨',scss:'🎨',
+           json:'📋',yml:'⚙️',yaml:'⚙️',toml:'⚙️',ini:'⚙️',
+           md:'📝',txt:'📄',sh:'⚡',bash:'⚡',
+           zip:'📦',tar:'📦',gz:'📦',rar:'📦',
+           jpg:'🖼',jpeg:'🖼',png:'🖼',gif:'🖼',svg:'🖼',
+           mp4:'🎬',mp3:'🎵',pdf:'📕',php:'🐘',rb:'💎',
+           sql:'🗄',db:'🗄',sqlite:'🗄'};
+  return m[ext]||'📄';
 }
 
 function renderFiles(files, path){
-  const list = document.getElementById('file-list');
-  if(!list) return;
-  
+  const list=document.getElementById('file-list');
   if(!files.length){
-    list.innerHTML = `
-      <div style="padding:40px;text-align:center;color:var(--text3);font-family:monospace;font-size:14px">
-        <span style="font-size:32px;display:block;margin-bottom:8px">📂</span> المجلد فارغ تماماً
-      </div>`;
+    list.innerHTML='<div style="padding:24px;text-align:center;color:var(--text3)">📂 Empty folder</div>';
     return;
   }
-  
-  list.innerHTML = '';
-  files.forEach(f => {
-    const fp = path.replace(/\/*$/, '') + '/' + f.name;
-    const row = document.createElement('div');
-    
-    // تصميم مخصص ومحسّن لكل سطر ملف ليناسب الـ Dashboard
-    row.className = 'file-item';
-    row.style.cssText = `
-      display:flex;align-items:center;justify-content:between;padding:10px 14px;
-      background:var(--bg2);border:1px solid var(--border);border-radius:10px;
-      margin-bottom:8px;transition:all 0.2s ease;gap:12px;box-sizing:border-box;
-    `;
-    
-    // تنسيق الأزرار الافتراضي المتناسق
-    const btnStyle = `
-      padding:5px 10px;background:var(--bg3);border:1px solid var(--border2);
-      border-radius:6px;color:var(--text2);font-size:12px;cursor:pointer;
-      font-weight:500;transition:0.15s;display:inline-flex;align-items:center;gap:4px;
-    `;
-
-    row.innerHTML = `
-      <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
-        <span style="font-size:18px;flex-shrink:0;user-select:none">${getFileIcon(f.name, f.is_dir)}</span>
-        <span style="color:var(--text);font-family:'Fira Code',monospace;font-size:13.5px;
-                     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;direction:ltr;text-align:left">${escapeHtml(f.name)}</span>
-        <span style="color:var(--text3);font-size:11px;font-family:monospace;margin-left:auto;flex-shrink:0">${f.size || ''}</span>
-      </div>
-      <div class="file-actions" style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-        ${f.is_dir ? 
-          `<button style="${btnStyle}color:var(--accent)" onclick="loadFiles('${escapeHtml(fp)}')">📂 فتح</button>` :
-          `<button style="${btnStyle}color:var(--yellow)" onclick="editFile('${escapeHtml(fp)}','${escapeHtml(f.name)}')">✏️ تعديل</button>
-           <button style="${btnStyle}color:var(--green)" onclick="runSingleFile('${escapeHtml(fp)}','${escapeHtml(f.name)}')">▶ تشغيل</button>`
-        }
-        ${(f.name.endsWith('.zip') || f.name.endsWith('.tar.gz') || f.name.endsWith('.tar')) ?
-          `<button style="${btnStyle}color:var(--neon)" onclick="openExtractModal('${escapeHtml(fp)}')">📦 فك الضغط</button>` : ''
-        }
-        <button style="${btnStyle}" onclick="setMain('${escapeHtml(f.name)}','${escapeHtml(fp)}')">★ أساسي</button>
-        <button style="${btnStyle}color:var(--red);border-color:rgba(248,81,73,0.2)" 
-                onmouseover="this.style.background='var(--red)';this.style.color='#fff'" 
-                onmouseout="this.style.background='var(--bg3)';this.style.color='var(--red)'"
-                onclick="deleteFile('${escapeHtml(fp)}','${escapeHtml(f.name)}')">🗑</button>
+  list.innerHTML='';
+  files.forEach(f=>{
+    const fp=path.replace(/\/*$/,'')+'/'+f.name;
+    const row=document.createElement('div');
+    row.className='file-item';
+    row.innerHTML=`
+      <span class="file-icon">${getFileIcon(f.name, f.is_dir)}</span>
+      <span class="file-name">${escapeHtml(f.name)}</span>
+      <span class="file-size">${f.size||''}</span>
+      <div class="file-actions">
+        ${f.is_dir?`<button onclick="loadFiles('${escapeHtml(fp)}')">Open</button>`:
+          `<button onclick="editFile('${escapeHtml(fp)}','${escapeHtml(f.name)}')">Edit</button>
+           <button onclick="runSingleFile('${escapeHtml(fp)}','${escapeHtml(f.name)}')">Run</button>`}
+        ${(f.name.endsWith('.zip')||f.name.endsWith('.tar.gz')||f.name.endsWith('.tar'))?
+          `<button onclick="openExtractModal('${escapeHtml(fp)}')">📦 Extract</button>`:''}
+        <button onclick="setMain('${escapeHtml(f.name)}','${escapeHtml(fp)}')">★ Main</button>
+        <button class="danger" onclick="deleteFile('${escapeHtml(fp)}','${escapeHtml(f.name)}')">🗑</button>
       </div>`;
-      
     list.appendChild(row);
   });
 }
 
 function renderBreadcrumb(path){
-  const el = document.getElementById('breadcrumb');
-  if(!el) return;
+  const el=document.getElementById('breadcrumb');
   const base = USER_PATH || '';
-  const rel = path.replace(base, '') || '/';
-  
-  // تنسيق مسار التنقل الداخلي ليعطي طابعاً برمجياً أنيقاً
-  el.style.cssText = `font-family:'Fira Code',monospace;font-size:12.5px;color:var(--text2);
-                      background:var(--bg3);padding:8px 14px;border-radius:8px;border:1px solid var(--border);
-                      display:inline-flex;align-items:center;gap:4px;direction:ltr`;
-                      
-  el.innerHTML = `<span style="color:var(--accent);font-weight:700">~ root</span> <span style="color:var(--text3)">/</span> ` + 
-                 escapeHtml(rel.replace(/\//g, ' <span style="color:var(--text3)">/</span> '));
+  const rel = path.replace(base,'') || '/';
+  el.innerHTML = '/ home / ' + escapeHtml(rel.replace(/\//g,' / '));
 }
 
 async function editFile(path, name){
   try{
-    const r = await fetch('/api/files/content?path='+encodeURIComponent(path));
-    const d = await r.json();
-    const title = document.getElementById('editor-title');
-    const area = document.getElementById('editor-content');
-    
-    if(title) title.textContent = '✏️ تعديل ملف: ' + name;
-    if(area) area.value = d.content || '';
-    
-    currentEditPath = path;
+    const r=await fetch('/api/files/content?path='+encodeURIComponent(path));
+    const d=await r.json();
+    document.getElementById('editor-title').textContent='✏️ '+name;
+    document.getElementById('editor-content').value=d.content||'';
+    currentEditPath=path;
     openModal('editor-modal');
-  }catch(e){ toast('❌ لا يمكن فتح الملف المتواجد بالمسار', true); }
+  }catch(e){ toast('Cannot open file', true); }
 }
 
 async function saveFile(){
   if(!currentEditPath) return;
-  const area = document.getElementById('editor-content');
-  const content = area ? area.value : '';
-  
-  try {
-    const r = await fetch('/api/files/save',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({path:currentEditPath,content})});
-    const d = await r.json();
-    toast(d.success ? '✅ تم حفظ التغييرات بنجاح' : '❌ فشل في حفظ الملف', !d.success);
-    if(d.success) closeModal('editor-modal');
-  } catch(e) { toast('❌ خطأ أثناء الاتصال بالخادم', true); }
+  const content=document.getElementById('editor-content').value;
+  const r=await fetch('/api/files/save',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({path:currentEditPath,content})});
+  const d=await r.json();
+  toast(d.success?'✅ Saved':'❌ Failed', !d.success);
+  if(d.success) closeModal('editor-modal');
 }
 
 async function runSingleFile(path, name){
-  const dir = path.substring(0, path.lastIndexOf('/'));
-  try {
-    const r = await fetch('/api/file/run',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({path:dir,filename:name})});
-    const d = await r.json();
-    if(d.success){
-      currentProcessId = d.process_id;
-      if (typeof setProcStatus === "function") setProcStatus(true);
-      
-      document.querySelectorAll('.tab-item').forEach(t => { 
-        if(t.dataset.tab === 'console' || t.getAttribute('data-tab') === 'console') t.click(); 
-      });
-      
-      toast('▶ تم بدء تشغيل: ' + name);
-      if (typeof startConsolePolling === "function") startConsolePolling();
-    } else { 
-      toast('❌ ' + (d.error || 'فشل تشغيل الملف'), true); 
-    }
-  } catch(e) { toast('❌ خطأ في تنفيذ الملف', true); }
+  const dir=path.substring(0,path.lastIndexOf('/'));
+  const r=await fetch('/api/file/run',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({path:dir,filename:name})});
+  const d=await r.json();
+  if(d.success){
+    currentProcessId=d.process_id;
+    setProcStatus(true);
+    document.querySelectorAll('.tab-item').forEach(t=>{ if(t.dataset.tab==='console') t.click(); });
+    toast('▶ Running: '+name);
+    startConsolePolling();
+  } else { toast('❌ '+(d.error||'Failed'), true); }
 }
 
 async function setMain(filename, path){
-  try {
-    const r = await fetch('/api/files/set-main',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({filename,path})});
-    const d = await r.json();
-    toast(d.success ? '★ تم تعيين الملف الرئيسي: ' + filename : '❌ فشل التعيين', !d.success);
-  } catch(e) { toast('❌ فشل في إرسال الطلب', true); }
+  const r=await fetch('/api/files/set-main',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({filename,path})});
+  const d=await r.json();
+  toast(d.success?'★ Main file set: '+filename:'Failed', !d.success);
 }
 
 async function deleteFile(path, name){
-  if(!confirm(`هل أنت متأكد من حذف الملف "${name}" نهائياً؟`)) return;
-  try {
-    const r = await fetch('/api/files/delete',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({path})});
-    const d = await r.json();
-    toast(d.success ? '🗑 تم حذف الملف' : '❌ فشل الحذف', !d.success);
-    if(d.success) loadFiles(currentPath);
-  } catch(e) { toast('❌ حدث خطأ غير متوقع', true); }
+  if(!confirm('Delete "'+name+'"?')) return;
+  const r=await fetch('/api/files/delete',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({path})});
+  const d=await r.json();
+  toast(d.success?'🗑 Deleted':'Failed', !d.success);
+  if(d.success) loadFiles(currentPath);
 }
 
 async function createDir(){
-  const n = prompt('أدخل اسم المجلد الجديد:'); 
-  if(!n) return;
-  const p = currentPath.replace(/\/*$/, '') + '/' + n;
-  try {
-    const r = await fetch('/api/files/folder',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({path:p})});
-    const d = await r.json();
-    toast(d.success ? '📁 تم إنشاء المجلد بنجاح' : '❌ فشل إنشاء المجلد', !d.success);
-    if(d.success) loadFiles(currentPath);
-  } catch(e) { toast('❌ خطأ في العملية', true); }
+  const n=prompt('Folder name:'); if(!n) return;
+  const p=currentPath.replace(/\/*$/,'')+'/'+n;
+  const r=await fetch('/api/files/folder',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({path:p})});
+  const d=await r.json();
+  toast(d.success?'📁 Created':'Failed', !d.success);
+  if(d.success) loadFiles(currentPath);
 }
 
 async function newFile(){
-  const n = prompt('أدخل اسم الملف الجديد مع الصيغة (مثال: index.js):'); 
-  if(!n) return;
-  const p = currentPath.replace(/\/*$/, '') + '/' + n;
-  try {
-    const r = await fetch('/api/files/create',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({path:p,content:''})});
-    const d = await r.json();
-    toast(d.success ? '📄 تم إنشاء الملف بنجاح' : '❌ فشل إنشاء الملف', !d.success);
-    if(d.success){ loadFiles(currentPath); editFile(p, n); }
-  } catch(e) { toast('❌ خطأ في العملية', true); }
+  const n=prompt('File name:'); if(!n) return;
+  const p=currentPath.replace(/\/*$/,'')+'/'+n;
+  const r=await fetch('/api/files/create',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({path:p,content:''})});
+  const d=await r.json();
+  toast(d.success?'📄 Created':'Failed', !d.success);
+  if(d.success){ loadFiles(currentPath); editFile(p,n); }
 }
 
 async function uploadFiles(inp){
-  const files = inp.files; 
-  if(!files.length) return;
-  let ok = 0, fail = 0;
-  
+  const files=inp.files; if(!files.length) return;
+  let ok=0, fail=0;
   for(const f of files){
-    const fd = new FormData();
-    fd.append('file', f);
-    fd.append('path', currentPath);
-    try {
-      const r = await fetch('/api/files/upload', {method:'POST', body:fd});
-      const d = await r.json();
-      if(d.success){
-        ok++;
+    const fd=new FormData();
+    fd.append('file',f);
+    fd.append('path',currentPath);
+    const r=await fetch('/api/files/upload',{method:'POST',body:fd});
+    const d=await r.json();
+    if(d.success){
+      ok++;
+    } else {
+      fail++;
+      const errMsg = (d.error||'Upload failed');
+      if(errMsg.startsWith('SECURITY_ALERT|')){
+        const threats = errMsg.replace('SECURITY_ALERT|','');
+        showSecurityAlert(f.name, threats);
       } else {
-        fail++;
-        const errMsg = (d.error || 'Upload failed');
-        if(errMsg.startsWith('SECURITY_ALERT|')){
-          const threats = errMsg.replace('SECURITY_ALERT|', '');
-          showSecurityAlert(f.name, threats);
-        } else {
-          toast('❌ ' + errMsg, true);
-        }
+        toast('❌ '+errMsg, true);
       }
-    } catch(e) { fail++; }
+    }
   }
-  if(ok > 0) toast('⬆ تم رفع: ' + ok + ' ملف بنجاح', false);
+  if(ok>0) toast('⬆ تم الرفع: '+ok+' ملف', false);
   loadFiles(currentPath);
-  inp.value = '';
+  inp.value='';
 }
 
 function showSecurityAlert(fname, threats){
-  const overlay = document.createElement('div');
-  overlay.style.cssText = `
-    position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:999999;
-    display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px);
-    transition: all 0.3s ease;
-  `;
-  
-  overlay.innerHTML = `
-    <div style="background:var(--bg);border:2px solid var(--red);border-radius:20px;
-                padding:36px 32px;max-width:460px;width:92%;text-align:center;
-                box-shadow:0 0 50px rgba(248,81,73,0.35), 0 0 100px rgba(248,81,73,0.1);box-sizing:border-box">
-      <div style="font-size:64px;margin-bottom:12px;user-select:none;animation:pulse 1.2s ease-in-out infinite">🚨</div>
-      <div style="color:var(--red);font-size:24px;font-weight:900;margin-bottom:12px;letter-spacing:1px;font-family:sans-serif">تحذير أمني صارم!</div>
-      
-      <div style="background:rgba(248,81,73,0.05);border:1px solid rgba(248,81,73,0.25);border-radius:12px;padding:16px;margin-bottom:20px">
-        <div style="color:#ff8888;font-size:14.5px;font-weight:700;margin-bottom:8px">⚠️ بطل عبط يا حبيبي عشان متتحظرش!</div>
-        <div style="color:var(--text2);font-size:12.5px;margin-bottom:8px;text-align:right;direction:rtl">الملف: <span style="color:var(--red);font-family:'Fira Code',monospace;font-weight:600">${escapeHtml(fname)}</span></div>
-        <div style="color:var(--text2);font-size:12.5px;text-align:right;direction:rtl">المشكلة المخالفة: <span style="color:var(--yellow);font-family:'Fira Code',monospace;font-size:12px;font-weight:600">${escapeHtml(threats)}</span></div>
-      </div>
-      
-      <div style="color:var(--text3);font-size:12px;margin-bottom:20px;font-family:monospace">⛔ [SYSTEM]: تم تسجيل النشاط وإرسال تقرير فوري للمطور RIKO</div>
-      <button onclick="this.closest('div').parentElement.remove()" 
-              style="padding:12px 36px;background:linear-gradient(135deg, #b62324, var(--red));border:none;border-radius:10px;
-                     color:#fff;font-weight:800;cursor:pointer;font-size:15px;box-shadow:0 4px 15px rgba(248,81,73,0.3);
-                     transition:0.2s"
-              onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">حسناً، فهمت ✓</button>
+  const overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:999999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px)';
+  overlay.innerHTML=`<div style="background:#0d1117;border:2px solid #f85149;border-radius:20px;padding:36px 32px;max-width:440px;width:92%;text-align:center;box-shadow:0 0 60px rgba(248,81,73,.4),0 0 120px rgba(248,81,73,.15)">
+    <div style="font-size:64px;margin-bottom:12px;animation:pulse 1s ease-in-out infinite">🚨</div>
+    <div style="color:#f85149;font-size:22px;font-weight:900;margin-bottom:10px;letter-spacing:1px">تحذير أمني!</div>
+    <div style="background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.3);border-radius:10px;padding:14px;margin-bottom:16px">
+      <div style="color:#ff9999;font-size:14px;font-weight:700;margin-bottom:6px">⚠️ بطل عبط يا حبيبي عشان متتحظرش!</div>
+      <div style="color:#8b949e;font-size:12px;margin-bottom:8px">الملف: <span style="color:#f85149;font-family:monospace">${escapeHtml(fname)}</span></div>
+      <div style="color:#8b949e;font-size:12px">المشكلة: <span style="color:#ffcc00;font-family:monospace;font-size:11px">${escapeHtml(threats)}</span></div>
     </div>
-  `;
+    <div style="color:#484f58;font-size:11px;margin-bottom:16px">⛔ تم إبلاغ الأدمن بالأمر تلقائياً</div>
+    <button onclick="this.closest('div').parentElement.remove()" style="padding:12px 32px;background:linear-gradient(135deg,#b62324,#f85149);border:none;border-radius:10px;color:#fff;font-weight:800;cursor:pointer;font-size:15px;letter-spacing:.5px;box-shadow:0 4px 20px rgba(248,81,73,.4)">حسناً، فهمت ✓</button>
+  </div>`;
   document.body.appendChild(overlay);
 }
 
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  ADVANCED UTILITIES & SCHEDULES ENGINE — DEVELOPED BY RIKO
-//  👑 Dev: @SHBH_S1 | 📢 Channel: @SHOBING_HXH
-// ═══════════════════════════════════════════════════════════════════════════
-
 async function uploadAndExtract(inp){
-  const f = inp.files[0]; 
-  if(!f) return;
-  
-  toast('⬆ جاري رفع الملف المضغوط وفكه...', false);
-  const fd = new FormData();
-  fd.append('file', f);
-  fd.append('path', currentPath);
-  
-  try {
-    const r = await fetch('/api/files/upload', {method:'POST', body:fd});
-    const d = await r.json();
-    
-    if(!d.success){ 
-      const errMsg = d.error || 'فشل الرفع';
-      if(errMsg.startsWith('SECURITY_ALERT|') && typeof showSecurityAlert === 'function'){
-        showSecurityAlert(f.name, errMsg.replace('SECURITY_ALERT|', ''));
-      } else {
-        toast('❌ فشل رفع الملف: ' + errMsg, true); 
-      }
-      return; 
-    }
-    
-    // تحديد المسارات بشكل آمن وبدون تكرار السلاش
-    const safePath = currentPath.replace(/\/*$/, '');
-    const archivePath = safePath + '/' + d.filename;
-    const destPath = safePath + '/' + d.filename.replace(/\.(zip|tar\.gz|tar|rar|gz)$/i, '');
-    
-    const er = await fetch('/api/files/extract', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({archive:archivePath, dest:destPath})
-    });
-    const ed = await er.json();
-    
-    if(ed.success) {
-      toast(`📦 تم استخراج الأرشيف بنجاح: ${ed.extracted} ملف`, false);
-    } else {
-      toast('❌ فشل فك الضغط: ' + (ed.error || 'خطأ مجهول'), true);
-    }
-    
-    loadFiles(currentPath);
-  } catch(e) { 
-    toast('❌ خطأ أثناء معالجة الأرشيف', true); 
-  } finally {
-    inp.value = '';
-  }
+  const f=inp.files[0]; if(!f) return;
+  toast('⬆ Uploading archive...', false, true);
+  const fd=new FormData();
+  fd.append('file',f);
+  fd.append('path',currentPath);
+  const r=await fetch('/api/files/upload',{method:'POST',body:fd});
+  const d=await r.json();
+  if(!d.success){ toast('❌ Upload failed', true); return; }
+  const archivePath=currentPath.replace(/\/*$/,'')+'/'+d.filename;
+  const destPath=currentPath.replace(/\/*$/,'')+'/'+d.filename.replace(/\.(zip|tar\.gz|tar|rar|gz)$/i,'');
+  const er=await fetch('/api/files/extract',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({archive:archivePath,dest:destPath})});
+  const ed=await er.json();
+  toast(ed.success?`📦 Extracted: ${ed.extracted} files`:'❌ Extract failed: '+(ed.error||''), !ed.success);
+  loadFiles(currentPath);
+  inp.value='';
 }
 
 function openExtractModal(srcPath){
-  const srcField = document.getElementById('extract-src');
-  const destField = document.getElementById('extract-dest');
-  
-  if(srcField) srcField.value = srcPath;
-  if(destField) destField.value = '';
-  
-  if(typeof openModal === 'function') openModal('extract-modal');
+  document.getElementById('extract-src').value=srcPath;
+  document.getElementById('extract-dest').value='';
+  openModal('extract-modal');
 }
 
 async function doExtract(){
-  const srcField = document.getElementById('extract-src');
-  const destField = document.getElementById('extract-dest');
-  
-  if(!srcField) return;
-  const src = srcField.value;
-  const destIn = destField ? destField.value.trim() : '';
-  const dest = destIn || src.replace(/\.(zip|tar\.gz|tar|rar|gz)$/i, '');
-  
-  try {
-    const r = await fetch('/api/files/extract', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({archive:src, dest})
-    });
-    const d = await r.json();
-    
-    if(d.success){
-      toast(`📦 تم فك الضغط بنجاح: ${d.extracted} ملف`, false);
-      if(typeof closeModal === 'function') closeModal('extract-modal');
-      loadFiles(currentPath);
-    } else {
-      toast('❌ ' + (d.error || 'فشل فك الضغط عن الملف'), true);
-    }
-  } catch(e) {
-    toast('❌ خطأ في الاتصال بالخادم', true);
-  }
+  const src=document.getElementById('extract-src').value;
+  const destIn=document.getElementById('extract-dest').value.trim();
+  const dest=destIn || src.replace(/\.(zip|tar\.gz|tar|rar|gz)$/i,'');
+  const r=await fetch('/api/files/extract',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({archive:src,dest})});
+  const d=await r.json();
+  toast(d.success?`📦 Extracted: ${d.extracted} files`:'❌ '+(d.error||'Failed'), !d.success);
+  if(d.success){ closeModal('extract-modal'); loadFiles(currentPath); }
 }
 
-// ─── DATABASE MANAGEMENT (JSON BASED) ───
+// ─── DB ───
 async function createDB(){
-  const dbInput = document.getElementById('db-name');
-  if(!dbInput) return;
-  
-  const n = dbInput.value.trim(); 
-  if(!n) { toast('⚠️ يرجى إدخال اسم قاعدة البيانات', true); return; }
-  
-  const safePath = currentPath.replace(/\/*$/, '');
-  const dbPath = safePath + '/' + n + '.json';
-  
-  try {
-    const r = await fetch('/api/files/create', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({path: dbPath, content: '{}'})
-    });
-    const d = await r.json();
-    
-    if(d.success) {
-      toast('🗄️ تم إنشاء قاعدة البيانات بنجاح: ' + n + '.json', false);
-      dbInput.value = '';
-      loadFiles(currentPath);
-    } else {
-      toast('❌ فشل إنشاء قاعدة البيانات', true);
-    }
-  } catch(e) {
-    toast('❌ حدث خطأ أثناء إنشاء الملف', true);
-  }
+  const n=document.getElementById('db-name').value.trim(); if(!n) return;
+  const r=await fetch('/api/files/create',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({path:currentPath+'/'+n+'.json',content:'{}'})});
+  const d=await r.json();
+  toast(d.success?'🗄 DB created':'Failed', !d.success);
 }
 
-// ─── CRON SCHEDULES MANAGEMENT ───
+// ─── Schedules ───
 async function addSchedule(){
-  const nameField = document.getElementById('sch-name');
-  const cmdField = document.getElementById('sch-cmd');
-  const cronField = document.getElementById('sch-cron');
-  
-  if(!nameField || !cmdField || !cronField) return;
-  
-  const name = nameField.value.trim();
-  const cmd  = cmdField.value.trim();
-  const cron = cronField.value.trim();
-  
-  if(!name || !cmd) { 
-    toast('⚠️ يرجى ملء حقول الاسم والأمر على الأقل', true); 
-    return; 
-  }
-  
-  try {
-    const r = await fetch('/api/schedules/add', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({name, command:cmd, schedule:cron})
-    });
-    const d = await r.json();
-    
-    if(d.success){
-      toast('⏰ تم إضافة المجدول الزمني بنجاح: ' + name, false);
-      nameField.value = '';
-      cmdField.value = '';
-      cronField.value = '';
-      // إذا كان هناك دالة لتحديث قائمة المجدولات يمكن استدعاؤها هنا
-    } else {
-      toast('❌ فشل إضافة المجدول الزمني', true);
-    }
-  } catch(e) {
-    toast('❌ خطأ في الاتصال بالنظام', true);
-  }
+  const name=document.getElementById('sch-name').value.trim();
+  const cmd=document.getElementById('sch-cmd').value.trim();
+  const cron=document.getElementById('sch-cron').value.trim();
+  if(!name||!cmd) return;
+  const r=await fetch('/api/schedules/add',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name,command:cmd,schedule:cron})});
+  const d=await r.json();
+  toast(d.success?'⏰ Schedule added':'Failed', !d.success);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  PREMIUM NODE.JS ENGINE — DEVELOPED BY RIKO
-//  👑 Dev: @SHBH_S1 | 📢 Channel: @SHOBING_HXH
-// ═══════════════════════════════════════════════════════════════════════════
-
+// ─── NODE.JS ───
+// ─── Node.js ───────────────────────────────────────────────────────────────
 async function loadNodeJsFiles(){
-  const pathEl = document.getElementById('nodejs-path');
-  const mainEl = document.getElementById('nodejs-main');
-  const depsEl = document.getElementById('nodejs-deps');
-  const listEl = document.getElementById('nodejs-files-list');
-  
-  if(!pathEl || !listEl) return;
-  const path = pathEl.value.trim();
-  if(!path){ toast('⚠️ اكتب مسار المشروع أولاً', true); return; }
-  
-  listEl.style.display = 'block';
-  listEl.style.cssText = `display:block;background:var(--bg2);border:1px solid var(--border);
-                          border-radius:10px;margin-top:8px;max-height:220px;overflow-y:auto;padding:6px;`;
-  listEl.innerHTML = '<div style="padding:12px;color:var(--text2);font-size:12.5px;font-family:monospace">⏳ جاري فحص ملفات المشروع...</div>';
-  
+  const path=document.getElementById('nodejs-path').value.trim();
+  if(!path){ toast('اكتب المسار أولاً', true); return; }
+  const listEl=document.getElementById('nodejs-files-list');
+  listEl.style.display='block';
+  listEl.innerHTML='<div style="padding:8px;color:var(--text2);font-size:12px">⏳ جاري التحميل...</div>';
   try{
-    const r = await fetch('/api/nodejs/info',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        path, 
-        main_file: mainEl ? mainEl.value.trim() || null : null,
-        deps_file: depsEl ? depsEl.value.trim() || null : null
-      })
-    });
-    const d = await r.json();
-    
-    if(!d.success){ 
-      listEl.innerHTML = `<div style="padding:12px;color:var(--red);font-size:12.5px;font-family:monospace">❌ ${escapeHtml(d.error || 'Error')}</div>`; 
-      return; 
-    }
-    
-    // عرض أوامر التثبيت والتشغيل المتوقعة بتنسيق الكونسول
-    const ic = document.getElementById('nodejs-install-cmd');
-    const rc = document.getElementById('nodejs-run-cmd');
-    if(ic) ic.textContent = '$ ' + (d.install_command || 'npm install');
-    if(rc) rc.textContent = '$ ' + (d.run_command || 'node index.js');
-    
-    const previewEl = document.getElementById('nodejs-cmd-preview');
-    if(previewEl) previewEl.style.display = 'block';
-    
-    // عرض قائمة ملفات الـ JS المتاحة
-    const files = d.js_files || [];
-    if(!files.length){ 
-      listEl.innerHTML = '<div style="padding:12px;color:var(--text3);font-size:12.5px">📂 لا توجد ملفات .js في هذا المسار</div>'; 
-      return; 
-    }
-    
-    listEl.innerHTML = files.map(f => `
-      <div onclick="if(document.getElementById('nodejs-main')) document.getElementById('nodejs-main').value='${escapeHtml(f)}'; document.getElementById('nodejs-files-list').style.display='none';"
-           style="padding:8px 12px;font-size:13px;color:var(--text);cursor:pointer;border-radius:6px;
-                  font-family:'Fira Code',monospace;transition:0.15s;display:flex;align-items:center;gap:8px;" 
-           onmouseover="this.style.background='var(--bg3)';this.style.color='var(--accent)';" 
-           onmouseout="this.style.background='';this.style.color='var(--text)';">
-        <span style="color:var(--yellow)">📜</span> ${escapeHtml(f)}
+    const r=await fetch('/api/nodejs/info',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({path, main_file:document.getElementById('nodejs-main').value.trim()||null,
+        deps_file:document.getElementById('nodejs-deps').value.trim()||null})});
+    const d=await r.json();
+    if(!d.success){ listEl.innerHTML='<div style="padding:8px;color:var(--red);font-size:12px">'+escapeHtml(d.error||'Error')+'</div>'; return; }
+    // show install + run commands
+    const ic=document.getElementById('nodejs-install-cmd');
+    const rc=document.getElementById('nodejs-run-cmd');
+    if(ic) ic.textContent='$ '+escapeHtml(d.install_command||'npm install');
+    if(rc) rc.textContent='$ '+escapeHtml(d.run_command||'node index.js');
+    document.getElementById('nodejs-cmd-preview').style.display='block';
+    // list .js files
+    const files=d.js_files||[];
+    if(!files.length){ listEl.innerHTML='<div style="padding:8px;color:var(--text3);font-size:12px">لا توجد ملفات .js</div>'; return; }
+    listEl.innerHTML=files.map(f=>`
+      <div onclick="document.getElementById('nodejs-main').value='${escapeHtml(f)}';document.getElementById('nodejs-files-list').style.display='none';"
+           style="padding:8px 12px;font-size:12px;color:var(--text);cursor:pointer;border-bottom:1px solid var(--border);
+                  font-family:monospace;transition:.15s" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+        📜 ${escapeHtml(f)}
       </div>`).join('');
-  }catch(e){ 
-    listEl.innerHTML = '<div style="padding:12px;color:var(--red);font-size:12.5px">❌ خطأ في تحميل مسار الملفات</div>'; 
-  }
+  }catch(e){ listEl.innerHTML='<div style="padding:8px;color:var(--red);font-size:12px">خطأ في التحميل</div>'; }
 }
 
 async function previewNodeCmd(){
-  const pathEl = document.getElementById('nodejs-path');
-  const mainEl = document.getElementById('nodejs-main');
-  const depsEl = document.getElementById('nodejs-deps');
-  if(!pathEl) return;
-  
-  const path = pathEl.value.trim();
-  if(!path){ toast('⚠️ اكتب مسار المشروع أولاً', true); return; }
-  
-  try {
-    const r = await fetch('/api/nodejs/info',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        path,
-        main_file: mainEl ? mainEl.value.trim() || null : null,
-        deps_file: depsEl ? depsEl.value.trim() || null : null
-      })
-    });
-    const d = await r.json();
-    const ic = document.getElementById('nodejs-install-cmd');
-    const rc = document.getElementById('nodejs-run-cmd');
-    if(ic) ic.textContent = '$ ' + (d.install_command || 'npm install');
-    if(rc) rc.textContent = '$ ' + (d.run_command || 'node index.js');
-    
-    const previewEl = document.getElementById('nodejs-cmd-preview');
-    if(previewEl) previewEl.style.display = 'block';
-    toast('✅ تم تحديث ومعاينة الأوامر', false);
-  } catch(e) { toast('❌ فشل جلب المعاينة', true); }
+  const path=document.getElementById('nodejs-path').value.trim();
+  if(!path){ toast('اكتب المسار أولاً', true); return; }
+  const r=await fetch('/api/nodejs/info',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({path,
+      main_file:document.getElementById('nodejs-main').value.trim()||null,
+      deps_file:document.getElementById('nodejs-deps').value.trim()||null})});
+  const d=await r.json();
+  const ic=document.getElementById('nodejs-install-cmd');
+  const rc=document.getElementById('nodejs-run-cmd');
+  if(ic) ic.textContent='$ '+(d.install_command||'npm install');
+  if(rc) rc.textContent='$ '+(d.run_command||'node index.js');
+  document.getElementById('nodejs-cmd-preview').style.display='block';
+  toast('✅ الأوامر جاهزة', false, true);
 }
 
 async function startNodeProject(){
-  const path = document.getElementById('nodejs-path')?.value.trim();
-  const port = document.getElementById('nodejs-port')?.value.trim();
-  const mainFile = document.getElementById('nodejs-main')?.value.trim();
-  const depsFile = document.getElementById('nodejs-deps')?.value.trim();
-  
-  if(!path){ toast('⚠️ يرجى إدخال مسار مشروع Node.js', true); return; }
-  toast('🟢 جاري تشغيل بيئة الـ Node.js...', false);
-  
-  const outEl = document.getElementById('nodejs-start-output');
-  if(outEl){ 
-    outEl.style.display = 'block'; 
-    outEl.style.cssText = `display:block;padding:14px;background:#090d13;border:1px solid var(--border);
-                            border-radius:10px;color:#e6edf3;font-family:'Fira Code',monospace;font-size:12.5px;
-                            line-height:1.5;margin-top:12px;white-space:pre-wrap;`;
-    outEl.textContent = '⏳ [SYSTEM]: Installing project dependencies...\n'; 
-  }
-  
-  try {
-    const r = await fetch('/api/nodejs/start',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        path, 
-        port: port ? parseInt(port) : null,
-        main_file: mainFile || null, 
-        deps_file: depsFile || null
-      })
-    });
-    const d = await r.json();
-    
-    if(outEl && d.install_output) outEl.textContent += d.install_output;
-    
-    if(d.success){
-      if(outEl) outEl.textContent += `\n✅ [SUCCESS]: Started command -> ${d.command}\n🔌 [PORT]: Project deployed on port ${d.port}\n`;
-      toast(`▶ تم تشغيل المشروع بنجاح على البورت ${d.port}`);
-      loadNodejsList();
-    } else {
-      if(outEl && d.install_commands) outEl.textContent += `\n📋 [REQUIRED INSTALL]:\n  ${d.install_commands.join('\n  ')}\n`;
-      if(outEl && d.run_command) outEl.textContent += `📋 [RUN COMMAND]:\n  ${d.run_command}\n`;
-      toast('❌ فشل بدء تشغيل المشروع: ' + (d.error || 'خطأ داخلي'), true);
-    }
-  } catch(e) { 
-    toast('❌ خطأ أثناء بدء خادم Node.js', true); 
+  const path=document.getElementById('nodejs-path').value.trim();
+  const port=document.getElementById('nodejs-port').value.trim();
+  const mainFile=document.getElementById('nodejs-main').value.trim();
+  const depsFile=document.getElementById('nodejs-deps').value.trim();
+  if(!path){ toast('Enter project path', true); return; }
+  toast('🟢 جاري تشغيل Node.js...', false, true);
+  const outEl=document.getElementById('nodejs-start-output');
+  if(outEl){ outEl.style.display='block'; outEl.textContent='⏳ Installing dependencies...\n'; }
+  const r=await fetch('/api/nodejs/start',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({path, port: port?parseInt(port):null,
+      main_file:mainFile||null, deps_file:depsFile||null})});
+  const d=await r.json();
+  if(outEl && d.install_output) outEl.textContent += d.install_output;
+  if(d.success){
+    if(outEl) outEl.textContent += `\n✅ Started: ${d.command}\n🔌 Port: ${d.port}\n`;
+    toast(`▶ Node.js started — port ${d.port}`);
+    loadNodejsList();
+  } else {
+    if(outEl && d.install_commands) outEl.textContent += `\n📋 Install commands:\n  ${d.install_commands.join('\n  ')}\n`;
+    if(outEl && d.run_command) outEl.textContent += `📋 Run command:\n  ${d.run_command}\n`;
+    toast('❌ '+(d.error||'Failed'), true);
   }
 }
 
 async function loadNodejsList(){
   try{
-    const r = await fetch('/api/nodejs/list');
-    const d = await r.json();
-    const list = document.getElementById('nodejs-list');
+    const r=await fetch('/api/nodejs/list');
+    const d=await r.json();
+    const list=document.getElementById('nodejs-list');
     if(!list) return;
-    
-    if(!(d.processes || []).length){
-      list.innerHTML = `
-        <div style="padding:32px;text-align:center;color:var(--text3);font-family:monospace;font-size:13px">
-          📭 لا توجد عمليات Node.js نشطة حالياً.
-        </div>`;
+    if(!(d.processes||[]).length){
+      list.innerHTML='<div style="padding:20px;text-align:center;color:var(--text3)">No Node.js processes running.</div>';
       return;
     }
-    
-    list.innerHTML = '';
-    d.processes.forEach(p => {
-      const card = document.createElement('div');
-      card.className = 'nodejs-project-card';
-      
-      // تنسيق بطاقات المشاريع بشكل بريميوم متناسق ومستقر
-      card.style.cssText = `
-        display:flex;align-items:center;justify-content:space-between;padding:14px;
-        background:var(--bg2);border:1px solid var(--border);border-radius:12px;
-        margin-bottom:10px;gap:16px;box-sizing:border-box;transition:0.2s ease;
-      `;
-      
-      const isRunning = !!p.running;
-      const statusColor = isRunning ? 'var(--green)' : 'var(--red)';
-      const statusBg = isRunning ? 'rgba(63,185,80,0.1)' : 'rgba(248,81,73,0.1)';
-      const shadowGlow = isRunning ? '0 0 8px rgba(63,185,80,0.3)' : 'none';
-      
-      const btnStyle = `padding:6px 12px;background:var(--bg3);border:1px solid var(--border2);
-                        border-radius:8px;color:var(--text2);font-size:12px;cursor:pointer;
-                        font-weight:600;font-family:sans-serif;transition:0.15s;`;
-
-      card.innerHTML = `
-        <div class="project-info" style="flex:1;min-width:0;text-align:left;direction:ltr">
-          <div class="p-name" style="font-family:'Fira Code',monospace;font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-            <span style="color:${statusColor};text-shadow:${shadowGlow};margin-right:4px">●</span> ${escapeHtml(p.command || p.pid)}
-          </div>
-          <div class="p-meta" style="font-family:monospace;font-size:11.5px;color:var(--text3);line-height:1.4">
-            Port: <span style="color:var(--accent)">${p.port || '—'}</span> · 
-            Main: <span style="color:var(--text2)">${escapeHtml(p.main_file || 'auto')}</span> · 
-            Deps: <span style="color:var(--text2)">${escapeHtml(p.deps_file || 'package.json')}</span>
+    list.innerHTML='';
+    d.processes.forEach(p=>{
+      const card=document.createElement('div');
+      card.className='nodejs-project-card';
+      card.innerHTML=`
+        <div class="project-info">
+          <div class="p-name">🟢 ${escapeHtml(p.command||p.pid)}</div>
+          <div class="p-meta">
+            Port: ${p.port||'—'} · Main: ${escapeHtml(p.main_file||'auto')} ·
+            Deps: ${escapeHtml(p.deps_file||'package.json')} · ${escapeHtml((p.started||'').split('T')[0]||'')}
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-          <span style="padding:4px 10px;background:${statusBg};color:${statusColor};border-radius:6px;font-size:11px;font-weight:700;font-family:monospace;letter-spacing:0.5px">
-            ${isRunning ? 'RUNNING' : 'STOPPED'}
-          </span>
-          <button style="${btnStyle}color:var(--yellow)" onclick="viewNodeLogs('${escapeHtml(p.pid)}')">📋 السجلات</button>
-          <button style="${btnStyle}color:var(--red);border-color:rgba(248,81,73,0.15)" 
-                  onmouseover="this.style.background='var(--red)';this.style.color='#fff'"
-                  onmouseout="this.style.background='var(--bg3)';this.style.color='var(--red)'"
-                  onclick="stopNodeProcess('${escapeHtml(p.pid)}')">■ إيقاف</button>
+          <span class="p-status ${p.running?'running':'stopped'}">${p.running?'● Running':'● Stopped'}</span>
+          <button class="btn-action gray" style="font-size:11px" onclick="viewNodeLogs('${escapeHtml(p.pid)}')">📋 Logs</button>
+          <button class="btn-action danger" style="font-size:11px" onclick="stopNodeProcess('${escapeHtml(p.pid)}')">■ Stop</button>
         </div>`;
-        
       list.appendChild(card);
     });
   }catch(e){}
 }
 
 async function stopNodeProcess(pid){
-  if(!confirm('هل أنت متأكد من إيقاف عملية الـ Node هذه؟')) return;
-  try {
-    const r = await fetch('/api/nodejs/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pid})});
-    const d = await r.json();
-    toast(d.success ? '■ تم إيقاف عملية المشروع' : '❌ فشل إيقاف المشروع', !d.success);
-    if(d.success) loadNodejsList();
-  } catch(e) { toast('❌ خطأ في الاتصال بالسيرفر', true); }
+  const r=await fetch('/api/nodejs/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pid})});
+  const d=await r.json();
+  toast(d.success?'■ Stopped':'Failed', !d.success);
+  if(d.success) loadNodejsList();
 }
 
 async function viewNodeLogs(pid){
-  try {
-    const r = await fetch('/api/nodejs/logs/' + pid);
-    const d = await r.json();
-    
-    if(activeTerminalId){
-      const box = document.getElementById('console-output-' + activeTerminalId);
-      if(box){ 
-        const footer = document.getElementById('term-footer-' + activeTerminalId); 
-        while(box.firstChild && box.firstChild !== footer) {
-          box.removeChild(box.firstChild); 
-        }
-      }
-    }
-    
-    // طباعة السجلات واللوغات داخل الترمنال النشط لـ RIKO
-    if(d.output && d.output.length){
-      d.output.forEach(l => appendConsole(l));
-    } else {
-      appendConsole(`[SYSTEM]: No logs found for process ${pid}`);
-    }
-    
-    document.querySelectorAll('.tab-item').forEach(t => { 
-      if(t.dataset.tab === 'console' || t.getAttribute('data-tab') === 'console') t.click(); 
-    });
-    toast('📋 تم تحميل وعرض سجلات المخرجات بنجاح', false);
-  } catch(e) { toast('❌ فشل جلب سجلات اللوغات', true); }
+  const r=await fetch('/api/nodejs/logs/'+pid);
+  const d=await r.json();
+  if(activeTerminalId){
+    const box=document.getElementById('console-output-'+activeTerminalId);
+    if(box){ const footer=document.getElementById('term-footer-'+activeTerminalId); while(box.firstChild&&box.firstChild!==footer) box.removeChild(box.firstChild); }
+  }
+  (d.output||[]).forEach(l=>appendConsole(l));
+  document.querySelectorAll('.tab-item').forEach(t=>{ if(t.dataset.tab==='console') t.click(); });
+  toast('Logs loaded', false, true);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  PREMIUM PHP ENGINE — DEVELOPED BY RIKO
-//  👑 Dev: @SHBH_S1 | 📢 Channel: @SHOBING_HXH
-// ═══════════════════════════════════════════════════════════════════════════
-
+// ─── PHP ───────────────────────────────────────────────────────────────────
 async function loadPhpFiles(){
-  const pathEl = document.getElementById('php-path');
-  const mainEl = document.getElementById('php-main');
-  const depsEl = document.getElementById('php-deps');
-  const listEl = document.getElementById('php-files-list');
-  
-  if(!pathEl || !listEl) return;
-  const path = pathEl.value.trim();
-  if(!path){ toast('⚠️ اكتب مسار المشروع أولاً', true); return; }
-  
-  listEl.style.display = 'block';
-  listEl.style.cssText = `display:block;background:var(--bg2);border:1px solid var(--border);
-                          border-radius:10px;margin-top:8px;max-height:220px;overflow-y:auto;padding:6px;`;
-  listEl.innerHTML = '<div style="padding:12px;color:var(--text2);font-size:12.5px;font-family:monospace">⏳ جاري فحص ملفات PHP...</div>';
-  
+  const path=document.getElementById('php-path').value.trim();
+  if(!path){ toast('اكتب المسار أولاً', true); return; }
+  const listEl=document.getElementById('php-files-list');
+  listEl.style.display='block';
+  listEl.innerHTML='<div style="padding:8px;color:var(--text2);font-size:12px">⏳ جاري التحميل...</div>';
   try{
-    const r = await fetch('/api/php/info',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        path, 
-        main_file: mainEl ? mainEl.value.trim() || null : null,
-        deps_file: depsEl ? depsEl.value.trim() || null : null
-      })
-    });
-    const d = await r.json();
-    
-    if(!d.success){ 
-      listEl.innerHTML = `<div style="padding:12px;color:var(--red);font-size:12.5px;font-family:monospace">❌ ${escapeHtml(d.error || 'Error')}</div>`; 
-      return; 
-    }
-    
-    // عرض أوامر التشغيل المتوقعة في شاشة المعاينة
-    const ic = document.getElementById('php-install-cmd');
-    const rc = document.getElementById('php-run-cmd');
-    const icArr = Array.isArray(d.install_commands) ? d.install_commands : [d.install_commands || 'composer install (if needed)'];
-    
-    if(ic) ic.textContent = '$ ' + icArr.join('\n$ ');
-    if(rc) rc.textContent = '$ ' + escapeHtml(d.run_command || 'php -S 0.0.0.0:PORT');
-    
-    const previewEl = document.getElementById('php-cmd-preview');
-    if(previewEl) previewEl.style.display = 'block';
-    
-    // عرض قائمة ملفات PHP
-    const files = d.php_files || [];
-    if(!files.length){ 
-      listEl.innerHTML = '<div style="padding:12px;color:var(--text3);font-size:12.5px">📂 لا توجد ملفات .php في هذا المسار</div>'; 
-      return; 
-    }
-    
-    listEl.innerHTML = files.map(f => `
-      <div onclick="if(document.getElementById('php-main')) document.getElementById('php-main').value='${escapeHtml(f)}'; document.getElementById('php-files-list').style.display='none';"
-           style="padding:8px 12px;font-size:13px;color:var(--text);cursor:pointer;border-radius:6px;
-                  font-family:'Fira Code',monospace;transition:0.15s;display:flex;align-items:center;gap:8px;" 
-           onmouseover="this.style.background='var(--bg3)';this.style.color='var(--accent)';" 
-           onmouseout="this.style.background='';this.style.color='var(--text)';">
-        <span style="color:var(--accent2)">🐘</span> ${escapeHtml(f)}
+    const r=await fetch('/api/php/info',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({path, main_file:document.getElementById('php-main').value.trim()||null,
+        deps_file:document.getElementById('php-deps').value.trim()||null})});
+    const d=await r.json();
+    if(!d.success){ listEl.innerHTML='<div style="padding:8px;color:var(--red);font-size:12px">'+escapeHtml(d.error||'Error')+'</div>'; return; }
+    // show commands
+    const ic=document.getElementById('php-install-cmd');
+    const rc=document.getElementById('php-run-cmd');
+    const icArr=Array.isArray(d.install_commands)?d.install_commands:[d.install_commands||'composer install (if needed)'];
+    if(ic) ic.textContent='$ '+icArr.join('\n$ ');
+    if(rc) rc.textContent='$ '+escapeHtml(d.run_command||'php -S 0.0.0.0:PORT');
+    // list php files
+    const files=d.php_files||[];
+    if(!files.length){ listEl.innerHTML='<div style="padding:8px;color:var(--text3);font-size:12px">لا توجد ملفات .php</div>'; return; }
+    listEl.innerHTML=files.map(f=>`
+      <div onclick="document.getElementById('php-main').value='${escapeHtml(f)}';document.getElementById('php-files-list').style.display='none';"
+           style="padding:8px 12px;font-size:12px;color:var(--text);cursor:pointer;border-bottom:1px solid var(--border);
+                  font-family:monospace;transition:.15s" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+        🐘 ${escapeHtml(f)}
       </div>`).join('');
-  }catch(e){ 
-    listEl.innerHTML = '<div style="padding:12px;color:var(--red);font-size:12.5px">❌ خطأ في تحميل مسار الملفات</div>'; 
-  }
+  }catch(e){ listEl.innerHTML='<div style="padding:8px;color:var(--red);font-size:12px">خطأ في التحميل</div>'; }
 }
 
 async function previewPhpCmd(){
-  const pathEl = document.getElementById('php-path');
-  const mainEl = document.getElementById('php-main');
-  const depsEl = document.getElementById('php-deps');
-  if(!pathEl) return;
-  
-  const path = pathEl.value.trim();
-  if(!path){ toast('⚠️ اكتب المسار أولاً لمعاينة الأوامر', true); return; }
-  
-  try {
-    const r = await fetch('/api/php/info',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        path,
-        main_file: mainEl ? mainEl.value.trim() || null : null,
-        deps_file: depsEl ? depsEl.value.trim() || null : null
-      })
-    });
-    const d = await r.json();
-    
-    const ic = document.getElementById('php-install-cmd');
-    const rc = document.getElementById('php-run-cmd');
-    const icArr = Array.isArray(d.install_commands) ? d.install_commands : [d.install_commands || 'composer install (if needed)'];
-    
-    if(ic) ic.textContent = '$ ' + icArr.join('\n$ ');
-    if(rc) rc.textContent = '$ ' + (d.run_command || 'php -S 0.0.0.0:PORT');
-    
-    const previewEl = document.getElementById('php-cmd-preview');
-    if(previewEl) previewEl.style.display = 'block';
-    
-    toast('✅ تم تحديث ومعاينة الأوامر', false);
-  } catch(e) { toast('❌ فشل جلب المعاينة', true); }
+  const path=document.getElementById('php-path').value.trim();
+  if(!path){ toast('اكتب المسار أولاً', true); return; }
+  const r=await fetch('/api/php/info',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({path,
+      main_file:document.getElementById('php-main').value.trim()||null,
+      deps_file:document.getElementById('php-deps').value.trim()||null})});
+  const d=await r.json();
+  const ic=document.getElementById('php-install-cmd');
+  const rc=document.getElementById('php-run-cmd');
+  const icArr=Array.isArray(d.install_commands)?d.install_commands:[d.install_commands||'composer install (if needed)'];
+  if(ic) ic.textContent='$ '+icArr.join('\n$ ');
+  if(rc) rc.textContent='$ '+(d.run_command||'php -S 0.0.0.0:PORT');
+  toast('✅ الأوامر جاهزة', false, true);
 }
 
 async function startPhpServer(){
-  const path = document.getElementById('php-path')?.value.trim();
-  const port = document.getElementById('php-port')?.value.trim();
-  const mainFile = document.getElementById('php-main')?.value.trim();
-  const depsFile = document.getElementById('php-deps')?.value.trim();
-  
-  if(!path){ toast('⚠️ يرجى إدخال المسار الأساسي (Root Path) لمشروع PHP', true); return; }
-  toast('🐘 جاري تشغيل خادم PHP...', false);
-  
-  const outEl = document.getElementById('php-start-output');
-  if(outEl){ 
-    outEl.style.display = 'block'; 
-    outEl.style.cssText = `display:block;padding:14px;background:#090d13;border:1px solid var(--border);
-                           border-radius:10px;color:#e6edf3;font-family:'Fira Code',monospace;font-size:12.5px;
-                           line-height:1.5;margin-top:12px;white-space:pre-wrap;`;
-    outEl.textContent = '⏳ [SYSTEM]: Checking Composer dependencies...\n'; 
-  }
-  
-  try {
-    const r = await fetch('/api/php/start',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        path, 
-        port: port ? parseInt(port) : null,
-        main_file: mainFile || null, 
-        deps_file: depsFile || null
-      })
-    });
-    const d = await r.json();
-    
-    if(outEl && d.install_output) outEl.textContent += d.install_output;
-    
-    if(d.success){
-      if(outEl) outEl.textContent += `\n✅ [SUCCESS]: PHP Server running on port ${d.port}\n📄 [ENTRY]: ${d.command}\n`;
-      toast(`▶ تم تشغيل خادم PHP بنجاح على المنفذ ${d.port}`);
-      loadPhpList();
-    } else {
-      if(outEl && d.install_commands) outEl.textContent += `\n📋 [INSTALL COMMANDS]:\n  ${d.install_commands.join('\n  ')}\n`;
-      if(outEl && d.run_command)  outEl.textContent += `📋 [RUN COMMAND]:\n  ${d.run_command}\n`;
-      toast('❌ فشل تشغيل خادم PHP: ' + (d.error || 'خطأ داخلي'), true);
-    }
-  } catch(e) {
-    toast('❌ خطأ أثناء الاتصال بالخادم', true);
+  const path=document.getElementById('php-path').value.trim();
+  const port=document.getElementById('php-port').value.trim();
+  const mainFile=document.getElementById('php-main').value.trim();
+  const depsFile=document.getElementById('php-deps').value.trim();
+  if(!path){ toast('Enter PHP root path', true); return; }
+  toast('🐘 جاري تشغيل PHP...', false, true);
+  const outEl=document.getElementById('php-start-output');
+  if(outEl){ outEl.style.display='block'; outEl.textContent='⏳ Checking dependencies...\n'; }
+  const r=await fetch('/api/php/start',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({path, port: port?parseInt(port):null,
+      main_file:mainFile||null, deps_file:depsFile||null})});
+  const d=await r.json();
+  if(outEl && d.install_output) outEl.textContent += d.install_output;
+  if(d.success){
+    if(outEl) outEl.textContent += `\n✅ PHP running — port ${d.port}\n📄 Entry: ${d.command}\n`;
+    toast(`▶ PHP started — port ${d.port}`);
+    loadPhpList();
+  } else {
+    if(outEl && d.install_commands) outEl.textContent += `\n📋 Install commands:\n  ${d.install_commands.join('\n  ')}\n`;
+    if(outEl && d.run_command)  outEl.textContent += `📋 Run command:\n  ${d.run_command}\n`;
+    toast('❌ '+(d.error||'Failed'), true);
   }
 }
 
 async function loadPhpList(){
   try{
-    const r = await fetch('/api/php/list');
-    const d = await r.json();
-    const list = document.getElementById('php-list');
+    const r=await fetch('/api/php/list');
+    const d=await r.json();
+    const list=document.getElementById('php-list');
     if(!list) return;
-    
-    if(!(d.servers || []).length){
-      list.innerHTML = `
-        <div style="padding:32px;text-align:center;color:var(--text3);font-family:monospace;font-size:13px">
-          📭 لا توجد خوادم PHP نشطة حالياً.
-        </div>`;
+    if(!(d.servers||[]).length){
+      list.innerHTML='<div style="padding:20px;text-align:center;color:var(--text3)">No PHP servers running.</div>';
       return;
     }
-    
-    list.innerHTML = '';
-    d.servers.forEach(s => {
-      const card = document.createElement('div');
-      card.className = 'php-server-card';
-      
-      // تنسيق بطاقات خوادم PHP بطابع احترافي
-      card.style.cssText = `
-        display:flex;align-items:center;justify-content:space-between;padding:14px;
-        background:var(--bg2);border:1px solid var(--border);border-radius:12px;
-        margin-bottom:10px;gap:16px;box-sizing:border-box;transition:0.2s ease;
-      `;
-      
-      const isRunning = !!s.running;
-      const statusColor = isRunning ? 'var(--green)' : 'var(--red)';
-      const statusBg = isRunning ? 'rgba(63,185,80,0.1)' : 'rgba(248,81,73,0.1)';
-      const shadowGlow = isRunning ? '0 0 8px rgba(63,185,80,0.3)' : 'none';
-      
-      const btnStyle = `padding:6px 12px;background:var(--bg3);border:1px solid var(--border2);
-                        border-radius:8px;color:var(--text2);font-size:12px;cursor:pointer;
-                        font-weight:600;font-family:sans-serif;transition:0.15s;`;
-
-      card.innerHTML = `
-        <div class="project-info" style="flex:1;min-width:0;text-align:left;direction:ltr">
-          <div class="p-name" style="font-family:'Fira Code',monospace;font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-            <span style="color:${statusColor};text-shadow:${shadowGlow};margin-right:4px">●</span> 🐘 PHP Server — Port <span style="color:var(--accent2)">${s.port || '—'}</span>
+    list.innerHTML='';
+    d.servers.forEach(s=>{
+      const card=document.createElement('div');
+      card.className='php-server-card';
+      card.innerHTML=`
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+          <div>
+            <div style="font-size:14px;font-weight:700;color:var(--text)">🐘 PHP Server — Port ${s.port||'—'}</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:3px">
+              Entry: ${escapeHtml(s.main_file||'auto')} ·
+              Deps: ${escapeHtml(s.deps_file||'composer.json')} ·
+              ${escapeHtml((s.started||'').split('T')[0]||'')}
+            </div>
           </div>
-          <div class="p-meta" style="font-family:monospace;font-size:11.5px;color:var(--text3);line-height:1.4">
-            Entry: <span style="color:var(--text2)">${escapeHtml(s.main_file || 'auto')}</span> · 
-            Deps: <span style="color:var(--text2)">${escapeHtml(s.deps_file || 'composer.json')}</span> · 
-            ${escapeHtml((s.started || '').split('T')[0] || '')}
+          <div style="display:flex;gap:8px">
+            <span class="p-status ${s.running?'running':'stopped'}">${s.running?'● Running':'● Stopped'}</span>
+            <button class="btn-action danger" style="font-size:11px" onclick="stopPhpServer('${escapeHtml(s.pid)}')">■ Stop</button>
           </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-          <span style="padding:4px 10px;background:${statusBg};color:${statusColor};border-radius:6px;font-size:11px;font-weight:700;font-family:monospace;letter-spacing:0.5px">
-            ${isRunning ? 'RUNNING' : 'STOPPED'}
-          </span>
-          <button style="${btnStyle}color:var(--red);border-color:rgba(248,81,73,0.15)" 
-                  onmouseover="this.style.background='var(--red)';this.style.color='#fff'"
-                  onmouseout="this.style.background='var(--bg3)';this.style.color='var(--red)'"
-                  onclick="stopPhpServer('${escapeHtml(s.pid)}')">■ إيقاف</button>
         </div>`;
-        
       list.appendChild(card);
     });
   }catch(e){}
 }
 
 async function stopPhpServer(pid){
-  if(!confirm('هل أنت متأكد من إيقاف خادم PHP هذا؟')) return;
-  try {
-    const r = await fetch('/api/php/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pid})});
-    const d = await r.json();
-    toast(d.success ? '■ تم إيقاف خادم PHP بنجاح' : '❌ فشل إيقاف الخادم', !d.success);
-    if(d.success) loadPhpList();
-  } catch(e) { toast('❌ خطأ في الاتصال بالخادم', true); }
+  const r=await fetch('/api/php/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pid})});
+  const d=await r.json();
+  toast(d.success?'■ PHP stopped':'Failed', !d.success);
+  if(d.success) loadPhpList();
 }
 
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  PREMIUM USERS MANAGEMENT ENGINE — DEVELOPED BY RIKO
-//  👑 Dev: @SHBH_S1 | 📢 Channel: @SHOBING_HXH
-// ═══════════════════════════════════════════════════════════════════════════
-
+// ─── Users (master) ───
 function onPlanChange(){
-  const plan = document.getElementById('u-plan')?.value;
+  const plan = document.getElementById('u-plan').value;
   const wrap = document.getElementById('u-custom-days-wrap');
-  if(wrap) {
-    wrap.style.display = plan === 'custom' ? 'block' : 'none';
-    if(plan === 'custom') wrap.style.animation = 'fadeInModal 0.3s ease';
-  }
+  if(wrap) wrap.style.display = plan==='custom' ? 'block' : 'none';
 }
 
 async function addUser(){
-  const plan = document.getElementById('u-plan')?.value;
-  const username = document.getElementById('u-name')?.value.trim();
-  const password = document.getElementById('u-pass')?.value;
-  
-  if(!username || !password){ 
-    toast('⚠️ يرجى تعبئة اسم المستخدم وكلمة المرور', true); 
-    return; 
-  }
-
-  const data = {
-    username: username,
-    password: password,
-    tg_username: (document.getElementById('u-tg')?.value || '').trim().replace('@',''),
-    max_sessions: parseInt(document.getElementById('u-max')?.value) || 1,
-    max_servers: parseInt(document.getElementById('u-maxsrv')?.value) || 1,
-    main_file: document.getElementById('u-main')?.value || 'main.py',
-    plan: plan,
-    expiry_days: plan === 'custom' ? (parseInt(document.getElementById('u-days')?.value) || 7) : undefined
+  const plan = document.getElementById('u-plan').value;
+  const data={
+    username:    document.getElementById('u-name').value.trim(),
+    password:    document.getElementById('u-pass').value,
+    tg_username: (document.getElementById('u-tg').value||'').trim().replace('@',''),
+    max_sessions:parseInt(document.getElementById('u-max').value)||1,
+    max_servers: parseInt(document.getElementById('u-maxsrv').value)||1,
+    main_file:   document.getElementById('u-main').value||'main.py',
+    plan:        plan,
+    expiry_days: plan==='custom' ? (parseInt(document.getElementById('u-days').value)||7) : undefined
   };
-  
-  toast('⏳ جاري إضافة المستخدم...', false);
-  try {
-    const r = await fetch('/api/users/add', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(data)
-    });
-    const d = await r.json();
-    
-    if(d.success){
-      toast('✅ تم إضافة المستخدم بنجاح: ' + username, false);
-      // تفريغ الحقول بعد الإضافة لسهولة الاستخدام
-      document.getElementById('u-name').value = '';
-      document.getElementById('u-pass').value = '';
-      document.getElementById('u-tg').value = '';
-      loadUsers();
-    } else {
-      toast('❌ فشل الإضافة: ' + (d.error || 'خطأ مجهول'), true);
-    }
-  } catch(e) {
-    toast('❌ خطأ في الاتصال بالخادم', true);
-  }
+  if(!data.username||!data.password){ toast('Fill all fields', true); return; }
+  const r=await fetch('/api/users/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  const d=await r.json();
+  toast(d.success?'✅ User added':'❌ '+(d.error||''), !d.success);
+  if(d.success) loadUsers();
 }
 
-const PLAN_LABELS = {
-  free_trial: '<span style="color:var(--text2)">🆓 تجربة مجانية</span>',
-  paid_20: '<span style="color:var(--yellow)">⭐ 20 يوم</span>',
-  paid_30: '<span style="color:var(--accent2)">💎 30 يوم</span>',
-  custom: '<span style="color:var(--accent)">🎯 مخصص</span>'
-};
+const PLAN_LABELS = {free_trial:'🆓 Free Trial',paid_20:'⭐ 20 Day',paid_30:'💎 30 Day',custom:'🎯 Custom'};
 
 async function loadUsers(){
-  const el = document.getElementById('users-list'); 
-  if(!el) return;
-  
-  el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text2);font-family:monospace;font-size:13px">⏳ جاري تحميل بيانات المستخدمين...</div>';
-  
-  try {
-    const r = await fetch('/api/users/list');
-    const d = await r.json();
-    
-    if(!(d.users || []).length){
-      el.innerHTML = `
-        <div style="padding:32px;text-align:center;color:var(--text3);font-family:monospace;font-size:13px">
-          📭 لا يوجد مستخدمين مسجلين حالياً.
-        </div>`;
-      return;
-    }
-    
-    el.innerHTML = '';
-    d.users.forEach(u => {
-      const card = document.createElement('div');
-      card.className = 'user-card';
-      
-      // تصميم احترافي لبطاقة المستخدم
-      card.style.cssText = `
-        display:flex;align-items:center;justify-content:space-between;padding:16px;
-        background:var(--bg2);border:1px solid var(--border);border-radius:12px;
-        margin-bottom:12px;gap:16px;flex-wrap:wrap;transition:all 0.2s ease;
-      `;
-      card.onmouseover = () => card.style.borderColor = 'var(--accent)';
-      card.onmouseout = () => card.style.borderColor = 'var(--border)';
-
-      const isActive = u.active !== false;
-      const statusBadge = isActive 
-        ? `<span style="padding:4px 8px;background:rgba(63,185,80,0.1);color:var(--green);border-radius:6px;font-size:11px;font-weight:700;">✅ نشط</span>` 
-        : `<span style="padding:4px 8px;background:rgba(210,153,34,0.1);color:var(--yellow);border-radius:6px;font-size:11px;font-weight:700;">⏳ بانتظار الموافقة</span>`;
-
+  try{
+    const r=await fetch('/api/users/list');
+    const d=await r.json();
+    const el=document.getElementById('users-list'); if(!el) return;
+    el.innerHTML='';
+    (d.users||[]).forEach(u=>{
+      const card=document.createElement('div');
+      card.className='section-card';
+      card.style.marginBottom='10px';
+      const isActive=u.active!==false;
       const expStr = u.expiry ? (() => {
         const diff = Math.ceil((new Date(u.expiry) - new Date()) / 86400000);
-        if(diff > 0){
-          return `<span style="padding:4px 8px;background:rgba(255,255,255,0.05);color:${diff<3 ? 'var(--red)' : 'var(--text2)'};border-radius:6px;font-size:11px;font-weight:600;">⏳ ${diff} يوم متبقي</span>`;
-        }
-        return `<span style="padding:4px 8px;background:rgba(248,81,73,0.1);color:var(--red);border-radius:6px;font-size:11px;font-weight:700;">❌ منتهي الصلاحية</span>`;
-      })() : '<span style="padding:4px 8px;background:rgba(255,255,255,0.05);color:var(--text2);border-radius:6px;font-size:11px;">∞ غير محدود</span>';
-      
-      const planLabel = PLAN_LABELS[u.plan || 'free_trial'] || `<span style="color:var(--text2)">${escapeHtml(u.plan)}</span>`;
-      const pwDisplay = u.password_hash ? u.password_hash.substring(0,16) + '...' : '—';
-      
-      const btnStyle = `padding:6px 12px;background:var(--bg3);border:1px solid var(--border2);
-                        border-radius:8px;color:var(--text2);font-size:12px;cursor:pointer;
-                        font-weight:600;font-family:sans-serif;transition:0.15s;`;
-
-      card.innerHTML = `
-        <div style="flex:1;min-width:250px;text-align:right;direction:rtl">
-          <div style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:8px;display:flex;align-items:center;gap:8px">
-            👤 ${escapeHtml(u.username)}
-            ${u.tg_username ? `<a href="https://t.me/${escapeHtml(u.tg_username)}" target="_blank" style="text-decoration:none;color:var(--accent2);font-size:13px;font-weight:600;background:rgba(0,191,255,0.1);padding:2px 6px;border-radius:4px">@${escapeHtml(u.tg_username)}</a>` : ''}
+        return diff > 0 ? `<span style="color:${diff<3?'var(--red)':'var(--green)'}">⏳ ${diff} يوم متبقي</span>` : '<span style="color:var(--red)">❌ منتهي</span>';
+      })() : '';
+      const planLabel = PLAN_LABELS[u.plan||'free_trial'] || u.plan || '—';
+      // password hash display (first 16 chars)
+      const pwDisplay = u.password_hash ? u.password_hash.substring(0,16)+'...' : '—';
+      card.innerHTML=`
+        <div class="section-body">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap">
+            <div>
+              <div style="font-size:15px;font-weight:700;color:var(--text)">👤 ${escapeHtml(u.username)}</div>
+              <div style="font-size:12px;color:var(--text2);margin-top:4px;display:flex;flex-wrap:wrap;gap:8px">
+                ${u.tg_username?`<span>🔵 @${escapeHtml(u.tg_username)}</span>`:''}
+                <span>${planLabel}</span>
+                ${expStr}
+                <span style="color:${isActive?'var(--green)':'var(--yellow)'}">${isActive?'✅ Active':'⏳ Pending'}</span>
+              </div>
+              <div style="font-size:11px;color:var(--text3);margin-top:6px;font-family:monospace">
+                🔑 Hash: ${escapeHtml(pwDisplay)}
+                <button onclick="togglePwHash(this,'${escapeHtml(u.password_hash||'')}')" style="background:none;border:1px solid var(--border2);border-radius:4px;color:var(--text2);font-size:10px;padding:1px 6px;cursor:pointer;margin-left:6px">👁 Show</button>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              ${!isActive?`<button class="btn-action green" onclick="approveUser('${escapeHtml(u.username)}')">✅ Approve</button>`:''}
+              <button class="btn-action gray" onclick="openEditUser('${escapeHtml(u.username)}','${u.max_sessions||1}','${u.max_servers||1}','${escapeHtml(u.main_file||'main.py')}')">✏️ Edit</button>
+              <button class="btn-action danger" onclick="deleteUser('${escapeHtml(u.username)}')">🗑</button>
+            </div>
           </div>
-          
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
-            <span style="font-size:12px;font-weight:600;padding:4px 8px;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;">${planLabel}</span>
-            ${statusBadge}
-            ${expStr}
-          </div>
-          
-          <div style="display:flex;align-items:center;gap:6px;background:var(--bg3);padding:6px 10px;border-radius:8px;border:1px solid var(--border2);display:inline-flex;">
-            <span style="font-size:11px;color:var(--text3);font-family:'Fira Code',monospace;">🔑 Hash: </span>
-            <span class="pw-hash-text" style="font-size:11.5px;color:var(--text2);font-family:'Fira Code',monospace;">${escapeHtml(pwDisplay)}</span>
-            <button onclick="togglePwHash(this, '${escapeHtml(u.password_hash || '')}')" 
-                    style="background:none;border:none;color:var(--accent);font-size:11px;cursor:pointer;font-weight:700;margin-right:8px;padding:0;">👁 إظهار</button>
-          </div>
-        </div>
-        
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          ${!isActive ? `<button style="${btnStyle}color:var(--green);border-color:rgba(63,185,80,0.3)" 
-                                 onmouseover="this.style.background='var(--green)';this.style.color='#fff'"
-                                 onmouseout="this.style.background='var(--bg3)';this.style.color='var(--green)'"
-                                 onclick="approveUser('${escapeHtml(u.username)}')">✅ قبول الحساب</button>` : ''}
-                                 
-          <button style="${btnStyle}color:var(--yellow)" 
-                  onmouseover="this.style.borderColor='var(--yellow)'" onmouseout="this.style.borderColor='var(--border2)'"
-                  onclick="openEditUser('${escapeHtml(u.username)}','${u.max_sessions||1}','${u.max_servers||1}','${escapeHtml(u.main_file||'main.py')}')">✏️ تعديل</button>
-                  
-          <button style="${btnStyle}color:var(--red);border-color:rgba(248,81,73,0.2)" 
-                  onmouseover="this.style.background='var(--red)';this.style.color='#fff'"
-                  onmouseout="this.style.background='var(--bg3)';this.style.color='var(--red)'"
-                  onclick="deleteUser('${escapeHtml(u.username)}')">🗑 حذف</button>
         </div>`;
-        
       el.appendChild(card);
     });
-  } catch(e) {
-    el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--red);font-size:13px">❌ فشل تحميل بيانات المستخدمين</div>';
-  }
+  }catch(e){}
 }
 
 function togglePwHash(btn, fullHash){
-  const textSpan = btn.previousElementSibling;
-  if(!textSpan) return;
-  
-  if(btn.dataset.showing === '1'){
-    textSpan.textContent = fullHash.substring(0, 16) + '...';
-    btn.textContent = '👁 إظهار';
-    btn.dataset.showing = '0';
+  const prev = btn.previousSibling || btn.parentNode.childNodes[0];
+  if(btn.dataset.showing==='1'){
+    btn.previousElementSibling ? (btn.previousElementSibling.textContent = '🔑 Hash: '+fullHash.substring(0,16)+'...') : null;
+    btn.textContent='👁 Show';
+    btn.dataset.showing='0';
   } else {
-    textSpan.textContent = fullHash;
-    btn.textContent = '🙈 إخفاء';
-    btn.dataset.showing = '1';
+    btn.previousElementSibling ? (btn.previousElementSibling.textContent = '🔑 Hash: '+fullHash) : null;
+    btn.textContent='🙈 Hide';
+    btn.dataset.showing='1';
   }
 }
 
 async function approveUser(username){
-  toast('⏳ جاري تفعيل الحساب...', false);
-  try {
-    const r = await fetch('/api/users/approve', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({username})
-    });
-    const d = await r.json();
-    toast(d.success ? `✅ تم تفعيل حساب: ${username}` : '❌ فشل التفعيل', !d.success);
-    if(d.success) loadUsers();
-  } catch(e) { toast('❌ خطأ في الاتصال', true); }
+  const r=await fetch('/api/users/approve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username})});
+  const d=await r.json();
+  toast(d.success?`✅ ${username} approved`:'Failed', !d.success);
+  if(d.success) loadUsers();
 }
 
 function openEditUser(name, maxS, maxSrv, mainF){
-  document.getElementById('eu-name').value = name;
-  document.getElementById('eu-pass').value = '';
-  document.getElementById('eu-max').value = maxS;
-  document.getElementById('eu-maxsrv').value = maxSrv;
-  document.getElementById('eu-main').value = mainF;
-  document.getElementById('eu-days').value = 30;
+  document.getElementById('eu-name').value=name;
+  document.getElementById('eu-pass').value='';
+  document.getElementById('eu-max').value=maxS;
+  document.getElementById('eu-maxsrv').value=maxSrv;
+  document.getElementById('eu-main').value=mainF;
+  document.getElementById('eu-days').value=30;
   openModal('edit-user-modal');
 }
 
 async function saveEditUser(){
-  const username = document.getElementById('eu-name').value;
-  const data = {
-    username: username,
-    password: document.getElementById('eu-pass').value || undefined,
-    max_sessions: parseInt(document.getElementById('eu-max').value) || 1,
-    max_servers: parseInt(document.getElementById('eu-maxsrv').value) || 1,
-    main_file: document.getElementById('eu-main').value,
-    expiry_days: parseInt(document.getElementById('eu-days').value) || 30
+  const data={
+    username:document.getElementById('eu-name').value,
+    password:document.getElementById('eu-pass').value||undefined,
+    max_sessions:parseInt(document.getElementById('eu-max').value)||1,
+    max_servers:parseInt(document.getElementById('eu-maxsrv').value)||1,
+    main_file:document.getElementById('eu-main').value,
+    expiry_days:parseInt(document.getElementById('eu-days').value)||30
   };
-  
-  toast('⏳ جاري حفظ التعديلات...', false);
-  try {
-    const r = await fetch('/api/users/update', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(data)
-    });
-    const d = await r.json();
-    
-    if(d.success){
-      toast(`✅ تم تحديث بيانات [${username}] بنجاح`, false);
-      closeModal('edit-user-modal'); 
-      loadUsers();
-    } else {
-      toast('❌ فشل التحديث: ' + (d.error || ''), true);
-    }
-  } catch(e) { toast('❌ خطأ في الاتصال', true); }
+  const r=await fetch('/api/users/update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  const d=await r.json();
+  toast(d.success?'✅ Updated':'Failed', !d.success);
+  if(d.success){ closeModal('edit-user-modal'); loadUsers(); }
 }
 
 async function deleteUser(username){
-  if(!confirm(`⚠️ تحذير: هل أنت متأكد من حذف المستخدم "${username}" وجميع ملفاته نهائياً؟\nهذا الإجراء لا يمكن التراجع عنه.`)) return;
-  
-  toast('⏳ جاري الحذف...', false);
-  try {
-    const r = await fetch('/api/users/delete', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({username})
-    });
-    const d = await r.json();
-    toast(d.success ? `🗑 تم حذف المستخدم: ${username}` : '❌ فشل الحذف', !d.success);
-    if(d.success) loadUsers();
-  } catch(e) { toast('❌ خطأ في الاتصال', true); }
+  if(!confirm(`Delete user "${username}" and all files?`)) return;
+  const r=await fetch('/api/users/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username})});
+  const d=await r.json();
+  toast(d.success?'🗑 Deleted':'Failed', !d.success);
+  if(d.success) loadUsers();
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  PREMIUM BACKUPS & NETWORK ENGINE — DEVELOPED BY RIKO
-//  👑 Dev: @SHBH_S1 | 📢 Channel: @SHOBING_HXH
-// ═══════════════════════════════════════════════════════════════════════════
-
-// ─── BACKUPS MANAGEMENT ───
+// ─── Backups ───
 async function createBackup(){
-  toast('⏳ جاري إنشاء النسخة الاحتياطية، يرجى الانتظار...', false);
-  try {
-    const r = await fetch('/api/backups/create', {method: 'POST'});
-    const d = await r.json();
-    toast(d.success ? '✅ تم إنشاء النسخة الاحتياطية بنجاح' : '❌ فشل في إنشاء النسخة', !d.success);
-    if(d.success) loadBackups();
-  } catch(e) {
-    toast('❌ خطأ في الاتصال بالسيرفر', true);
-  }
+  toast('💾 Creating backup...', false, true);
+  const r=await fetch('/api/backups/create',{method:'POST'});
+  const d=await r.json();
+  toast(d.success?'✅ Backup created':'❌ Failed', !d.success);
+  if(d.success) loadBackups();
 }
 
 async function loadBackups(){
-  const el = document.getElementById('backups-list'); 
-  if(!el) return;
-  
-  el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text2);font-family:monospace;font-size:13px">⏳ جاري تحميل النسخ...</div>';
-  
-  try {
-    const r = await fetch('/api/backups/list');
-    const d = await r.json();
-    
-    if(!(d.backups || []).length){ 
-      el.innerHTML = `
-        <div style="padding:32px;text-align:center;color:var(--text3);font-family:monospace;font-size:13px">
-          📭 لا توجد نسخ احتياطية محفوظة حالياً.
-        </div>`;
-      return; 
-    }
-    
-    el.innerHTML = '';
-    d.backups.forEach(b => {
-      const card = document.createElement('div');
-      
-      card.style.cssText = `
-        display:flex;align-items:center;justify-content:space-between;padding:14px 16px;
-        background:var(--bg2);border:1px solid var(--border);border-radius:12px;
-        margin-bottom:10px;gap:16px;transition:0.2s ease;
-      `;
-      card.onmouseover = () => card.style.borderColor = 'var(--accent)';
-      card.onmouseout = () => card.style.borderColor = 'var(--border)';
-
-      const btnStyle = `padding:6px 14px;background:var(--bg3);border:1px solid var(--border2);
-                        border-radius:8px;color:var(--accent2);font-size:12px;cursor:pointer;
-                        font-weight:700;font-family:sans-serif;transition:0.15s;display:flex;align-items:center;gap:6px;`;
-
-      card.innerHTML = `
-        <div style="flex:1;min-width:0;direction:ltr;text-align:left">
-          <div style="font-size:14px;font-weight:700;color:var(--text);font-family:'Fira Code',monospace;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-            📦 ${escapeHtml(b.name)}
-          </div>
-          <div style="font-size:12px;color:var(--text3);font-family:monospace">
-            Size: <span style="color:var(--text2)">${escapeHtml(b.size || '—')}</span>
-          </div>
-        </div>
-        <button style="${btnStyle}" 
-                onmouseover="this.style.background='rgba(0,191,255,0.1)';this.style.borderColor='var(--accent2)'"
-                onmouseout="this.style.background='var(--bg3)';this.style.borderColor='var(--border2)'"
-                onclick="window.open('/api/backups/download?name=${encodeURIComponent(b.name)}','_blank')">
-          ⬇ تحميل
-        </button>`;
-      el.appendChild(card);
+  try{
+    const r=await fetch('/api/backups/list');
+    const d=await r.json();
+    const el=document.getElementById('backups-list'); if(!el) return;
+    if(!(d.backups||[]).length){ el.innerHTML='<div style="color:var(--text3);padding:10px">No backups found.</div>'; return; }
+    el.innerHTML='';
+    d.backups.forEach(b=>{
+      el.innerHTML+=`<div class="zip-item"><div><div class="z-name">📦 ${escapeHtml(b.name)}</div><div class="z-size">${escapeHtml(b.size||'')}</div></div><button class="btn-action gray" style="font-size:11px" onclick="window.open('/api/backups/download?name=${encodeURIComponent(b.name)}','_blank')">⬇ Download</button></div>`;
     });
-  } catch(e) {
-    el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--red);font-size:13px">❌ فشل تحميل النسخ الاحتياطية</div>';
-  }
+  }catch(e){}
 }
 
-// ─── PORTS MANAGEMENT ───
+// ─── Ports ───
 async function addPort(){
-  const portInput = document.getElementById('new-port');
-  const noteInput = document.getElementById('new-port-note');
-  
-  if(!portInput) return;
-  const port = parseInt(portInput.value);
-  const note = noteInput ? noteInput.value.trim() : '';
-  
-  if(!port || isNaN(port)){ 
-    toast('⚠️ يرجى إدخال رقم منفذ (Port) صحيح', true); 
-    return; 
-  }
-  
-  toast('⏳ جاري إضافة المنفذ...', false);
-  try {
-    const r = await fetch('/api/ports/add', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({port, note})
-    });
-    const d = await r.json();
-    
-    if(d.success){
-      toast(`✅ تم إضافة المنفذ [${port}] بنجاح`, false);
-      portInput.value = '';
-      if(noteInput) noteInput.value = '';
-      loadPorts();
-    } else {
-      toast('❌ فشل الإضافة: ' + (d.error || 'خطأ مجهول'), true);
-    }
-  } catch(e) { toast('❌ خطأ في الاتصال بالخادم', true); }
+  const port=parseInt(document.getElementById('new-port').value);
+  const note=document.getElementById('new-port-note').value.trim();
+  if(!port){ toast('Enter port number', true); return; }
+  const r=await fetch('/api/ports/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({port,note})});
+  const d=await r.json();
+  toast(d.success?'✅ Port added':'❌ '+(d.error||''), !d.success);
+  if(d.success) loadPorts();
 }
 
 async function loadPorts(){
-  const el = document.getElementById('ports-list'); 
-  if(!el) return;
-  
-  el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text2);font-size:13px">⏳ جاري التحميل...</div>';
-  
-  try {
-    const r = await fetch('/api/ports/list');
-    const d = await r.json();
-    
-    if(!(d.ports || []).length){ 
-      el.innerHTML = `
-        <div style="padding:24px;text-align:center;color:var(--text3);font-family:monospace;font-size:13px">
-          📭 لا توجد منافذ إضافية مهيأة حالياً.
-        </div>`;
-      return; 
-    }
-    
-    el.innerHTML = '';
-    d.ports.forEach(p => {
-      const card = document.createElement('div');
-      
-      card.style.cssText = `
-        display:flex;align-items:center;justify-content:space-between;padding:14px 16px;
-        background:var(--bg2);border:1px solid var(--border);border-radius:12px;
-        margin-bottom:10px;gap:16px;transition:0.2s ease;
-      `;
-      card.onmouseover = () => card.style.borderColor = 'var(--accent)';
-      card.onmouseout = () => card.style.borderColor = 'var(--border)';
-
-      const btnStyle = `padding:6px 12px;background:var(--bg3);border:1px solid var(--border2);
-                        border-radius:8px;color:var(--red);font-size:12px;cursor:pointer;
-                        font-weight:700;transition:0.15s;`;
-
-      const statusBadge = `<span style="padding:2px 6px;background:rgba(255,255,255,0.05);border-radius:4px;color:var(--text2);font-size:10px;text-transform:uppercase;">${escapeHtml(p.status || 'idle')}</span>`;
-
-      card.innerHTML = `
-        <div style="flex:1;direction:ltr;text-align:left">
-          <div style="font-size:14px;font-weight:800;color:var(--text);margin-bottom:6px;font-family:monospace">
-            🔌 Port <span style="color:var(--accent)">${p.port}</span>
-          </div>
-          <div style="font-size:12px;color:var(--text3);display:flex;align-items:center;gap:8px">
-            📝 ${escapeHtml(p.note || 'No description')}
-            ${statusBadge}
-          </div>
-        </div>
-        <button style="${btnStyle}" 
-                onmouseover="this.style.background='var(--red)';this.style.color='#fff';this.style.borderColor='var(--red)'"
-                onmouseout="this.style.background='var(--bg3)';this.style.color='var(--red)';this.style.borderColor='var(--border2)'"
-                onclick="deletePort(${p.port})">
-          🗑 حذف
-        </button>`;
-      el.appendChild(card);
+  try{
+    const r=await fetch('/api/ports/list');
+    const d=await r.json();
+    const el=document.getElementById('ports-list'); if(!el) return;
+    if(!(d.ports||[]).length){ el.innerHTML='<div style="color:var(--text3);padding:10px">No extra ports configured.</div>'; return; }
+    el.innerHTML='';
+    d.ports.forEach(p=>{
+      el.innerHTML+=`<div class="zip-item"><div><div class="z-name">🔌 Port ${p.port}</div><div class="z-size">${escapeHtml(p.note||'')} · ${escapeHtml(p.status||'idle')}</div></div><button class="btn-action danger" style="font-size:11px" onclick="deletePort(${p.port})">Delete</button></div>`;
     });
-  } catch(e) {
-    el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--red);font-size:13px">❌ فشل تحميل المنافذ</div>';
-  }
+  }catch(e){}
 }
 
 async function deletePort(port){
-  if(!confirm(`⚠️ هل أنت متأكد من رغبتك في حذف المنفذ المخصص ${port}؟`)) return;
-  
-  toast('⏳ جاري الحذف...', false);
-  try {
-    const r = await fetch('/api/ports/delete', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({port})
-    });
-    const d = await r.json();
-    toast(d.success ? `🗑 تم حذف المنفذ ${port}` : '❌ فشل الحذف', !d.success);
-    if(d.success) loadPorts();
-  } catch(e) { toast('❌ خطأ في الاتصال بالسيرفر', true); }
+  if(!confirm(`Delete port ${port}?`)) return;
+  const r=await fetch('/api/ports/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({port})});
+  const d=await r.json();
+  toast(d.success?'Deleted':'Failed', !d.success);
+  if(d.success) loadPorts();
 }
 
-// ─── PORT SCANNER ───
 async function scanPorts(){
-  const hostInput = document.getElementById('scan-host');
-  const portsInput = document.getElementById('scan-ports');
-  const resultsEl = document.getElementById('scan-results');
-  
-  if(!hostInput || !portsInput || !resultsEl) return;
-  
-  const host = hostInput.value.trim();
-  const ports = portsInput.value.split(',').map(p => parseInt(p.trim())).filter(Boolean);
-  
-  if(!host || !ports.length){ 
-    toast('⚠️ يرجى إدخال الـ Host والمنافذ المطلوبة للفحص', true); 
-    return; 
-  }
-  
-  resultsEl.style.display = 'block';
-  resultsEl.innerHTML = '<div style="padding:16px;text-align:center;color:var(--accent);font-family:monospace;font-size:13px;animation:pulse 1.5s infinite">🔍 جاري فحص المنافذ، يرجى الانتظار...</div>';
-  
-  try {
-    const r = await fetch('/api/network/scan', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({host, ports})
-    });
-    const d = await r.json();
-    
-    if(!(d.results || []).length){
-      resultsEl.innerHTML = '<div style="padding:12px;color:var(--text3);font-size:13px;text-align:center;">لم يتم العثور على نتائج.</div>';
-      return;
-    }
-    
-    // تصميم شبكي (Grid) لعرض النتائج بشكل احترافي
-    resultsEl.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(140px, 1fr));gap:10px;margin-top:12px;"></div>';
-    const grid = resultsEl.querySelector('div');
-    
-    d.results.forEach(p => {
-      const isOpen = p.open;
-      const color = isOpen ? 'var(--green)' : 'var(--red)';
-      const bgColor = isOpen ? 'rgba(63,185,80,0.1)' : 'rgba(248,81,73,0.1)';
-      const statusText = isOpen ? 'OPEN' : 'CLOSED';
-      
-      grid.innerHTML += `
-        <div style="background:var(--bg3);border:1px solid ${bgColor};border-radius:8px;padding:12px;text-align:center;direction:ltr;transition:0.2s" onmouseover="this.style.borderColor='${color}'" onmouseout="this.style.borderColor='${bgColor}'">
-          <div style="color:var(--text);font-family:'Fira Code',monospace;font-size:14px;font-weight:700;margin-bottom:6px">
-            Port ${p.port}
-          </div>
-          <div style="display:inline-block;padding:4px 10px;background:${bgColor};color:${color};border-radius:6px;font-size:11px;font-weight:800;letter-spacing:1px">
-            ${statusText}
-          </div>
-        </div>
-      `;
-    });
-    
-    toast('✅ اكتمل الفحص', false);
-  } catch(e) {
-    resultsEl.innerHTML = '<div style="padding:12px;color:var(--red);font-size:13px;text-align:center;">❌ فشل عملية الفحص</div>';
-    toast('❌ خطأ في الاتصال أثناء الفحص', true);
-  }
+  const host=document.getElementById('scan-host').value.trim();
+  const ports=document.getElementById('scan-ports').value.split(',').map(p=>parseInt(p.trim())).filter(Boolean);
+  if(!host||!ports.length){ toast('Enter host and ports', true); return; }
+  const r=await fetch('/api/network/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({host,ports})});
+  const d=await r.json();
+  const el=document.getElementById('scan-results');
+  el.innerHTML=(d.results||[]).map(p=>`<div style="display:flex;gap:8px;padding:4px 0;font-size:12px"><span style="color:${p.open?'var(--green)':'var(--red)'}">●</span><span style="color:var(--text)">Port ${p.port}</span><span style="color:${p.open?'var(--green)':'var(--red)'}"> — ${p.open?'OPEN':'CLOSED'}</span></div>`).join('');
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  PREMIUM SETTINGS & ACTIVITY ENGINE — DEVELOPED BY RIKO
-//  👑 Dev: @SHBH_S1 | 📢 Channel: @SHOBING_HXH
-// ═══════════════════════════════════════════════════════════════════════════
-
-// ─── SETTINGS MANAGEMENT ───
+// ─── Settings ───
 async function changePassword(){
-  const cur = document.getElementById('cur-pass')?.value;
-  const nw = document.getElementById('new-pass')?.value;
-  
-  if(!cur || !nw){ toast('⚠️ يرجى ملء جميع الحقول', true); return; }
-  
-  toast('⏳ جاري تحديث كلمة المرور...', false);
-  try {
-    const r = await fetch('/api/master/change-password', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({current_password: cur, new_password: nw})
-    });
-    const d = await r.json();
-    toast(d.success ? '✅ تم تغيير كلمة المرور بنجاح' : '❌ كلمة المرور الحالية غير صحيحة', !d.success);
-    if(d.success) { document.getElementById('cur-pass').value = ''; document.getElementById('new-pass').value = ''; }
-  } catch(e) { toast('❌ خطأ في الاتصال', true); }
+  const cur=document.getElementById('cur-pass').value;
+  const nw=document.getElementById('new-pass').value;
+  if(!cur||!nw){ toast('Fill all fields', true); return; }
+  const r=await fetch('/api/master/change-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({current_password:cur,new_password:nw})});
+  const d=await r.json();
+  toast(d.success?'✅ Password changed':'❌ Wrong password', !d.success);
 }
 
 async function loadSysinfo(){
-  const el = document.getElementById('sysinfo-box');
-  if(!el) return;
-  
-  try {
-    const r = await fetch('/api/sysinfo');
-    const d = await r.json();
-    el.textContent = d.info || '⚠️ لا توجد معلومات نظام متاحة';
-    el.style.fontFamily = "'Fira Code', monospace";
-  } catch(e) { el.textContent = '❌ فشل جلب معلومات النظام'; }
+  const r=await fetch('/api/sysinfo');
+  const d=await r.json();
+  document.getElementById('sysinfo-box').textContent=d.info||'';
 }
 
 async function setStartupFile(){
-  const f = document.getElementById('startup-file')?.value.trim();
-  if(!f) { toast('⚠️ يرجى كتابة اسم الملف', true); return; }
-  
-  try {
-    const r = await fetch('/api/files/set-main', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({filename: f, path: ''})
-    });
-    const d = await r.json();
-    toast(d.success ? `🚀 تم تعيين ملف البدء: ${f}` : '❌ فشل التعيين', !d.success);
-  } catch(e) { toast('❌ خطأ في الاتصال', true); }
+  const f=document.getElementById('startup-file').value.trim(); if(!f) return;
+  const r=await fetch('/api/files/set-main',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:f,path:''})});
+  const d=await r.json();
+  toast(d.success?'🚀 Startup set: '+f:'Failed', !d.success);
 }
 
-// ─── PACKAGE INSTALLATION ───
 async function installPip(){
-  const p = document.getElementById('pip-pkg')?.value.trim();
-  if(!p) { toast('⚠️ أدخل اسم الحزمة (Package)', true); return; }
-  
-  toast(`📦 جاري تثبيت الحزمة عبر Pip: ${p}...`, false);
-  try {
-    const r = await fetch('/api/packages/install/pip', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({package: p})
-    });
-    const d = await r.json();
-    toast(d.success ? `✅ تم تثبيت: ${p}` : `❌ فشل التثبيت: ${d.error || ''}`, !d.success);
-  } catch(e) { toast('❌ خطأ في الاتصال', true); }
+  const p=document.getElementById('pip-pkg').value.trim(); if(!p) return;
+  toast('📦 Installing '+p+'...',false,true);
+  const r=await fetch('/api/packages/install/pip',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({package:p})});
+  const d=await r.json();
+  toast(d.success?'✅ Installed: '+p:'❌ Failed', !d.success);
 }
 
 async function installNpm(){
-  const p = document.getElementById('npm-pkg')?.value.trim();
-  if(!p) { toast('⚠️ أدخل اسم الحزمة (Package)', true); return; }
-  
-  toast(`📦 جاري تثبيت الحزمة عبر Npm: ${p}...`, false);
-  try {
-    const r = await fetch('/api/packages/install/npm', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({package: p})
-    });
-    const d = await r.json();
-    toast(d.success ? `✅ تم تثبيت: ${p}` : `❌ فشل التثبيت: ${d.error || ''}`, !d.success);
-  } catch(e) { toast('❌ خطأ في الاتصال', true); }
+  const p=document.getElementById('npm-pkg').value.trim(); if(!p) return;
+  toast('📦 npm install '+p+'...',false,true);
+  const r=await fetch('/api/packages/install/npm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({package:p})});
+  const d=await r.json();
+  toast(d.success?'✅ Installed: '+p:'❌ Failed', !d.success);
 }
 
-// ─── ACTIVITY LOGS ───
+// ─── Activity ───
 async function loadActivity(){
-  const el = document.getElementById('activity-list');
-  if(!el) return;
-  
-  try {
-    const r = await fetch('/api/activity');
-    const d = await r.json();
-    
-    if(!(d.events || []).length){
-      el.innerHTML = '<div style="color:var(--text3);padding:20px;text-align:center;font-size:13px">📭 لا توجد سجلات نشاط حالياً.</div>';
-      return;
-    }
-    
-    el.innerHTML = '';
-    d.events.slice(0, 100).forEach(e => {
-      const row = document.createElement('div');
-      row.style.cssText = `
-        display:flex;gap:12px;padding:10px 14px;border-bottom:1px solid var(--border);
-        font-size:12.5px;transition:0.2s;align-items:center;
-      `;
-      row.onmouseover = () => row.style.background = 'var(--bg3)';
-      row.onmouseout = () => row.style.background = 'transparent';
-      
-      const time = (e.time_text || '').split(' ')[1] || '00:00';
-      
-      row.innerHTML = `
-        <span style="color:var(--accent);font-family:monospace;min-width:50px;font-weight:600">${time}</span>
-        <span style="color:var(--yellow);min-width:90px;font-weight:700">@${escapeHtml(e.username || 'system')}</span>
-        <span style="color:var(--text);flex:1">
-          ${escapeHtml(e.action || '')}
-          ${e.details ? `<span style="color:var(--text3);margin-left:8px;font-style:italic">| ${escapeHtml(e.details)}</span>` : ''}
-        </span>
-      `;
-      el.appendChild(row);
+  try{
+    const r=await fetch('/api/activity');
+    const d=await r.json();
+    const el=document.getElementById('activity-list'); if(!el) return;
+    if(!(d.events||[]).length){ el.innerHTML='<div style="color:var(--text3);padding:10px">No activity yet.</div>'; return; }
+    el.innerHTML='';
+    d.events.slice(0,100).forEach(e=>{
+      el.innerHTML+=`<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px">
+        <span style="color:var(--accent);min-width:60px;flex-shrink:0">${escapeHtml(e.time_text||'').split(' ')[1]||''}</span>
+        <span style="color:var(--text2);min-width:80px;flex-shrink:0">${escapeHtml(e.username||'')}</span>
+        <span style="color:var(--text)">${escapeHtml(e.action||'')} ${e.details?'<span style="color:var(--text3)">'+escapeHtml(e.details)+'</span>':''}</span>
+      </div>`;
     });
-  } catch(e) {
-    el.innerHTML = '<div style="color:var(--red);padding:20px;text-align:center">❌ فشل تحميل السجلات</div>';
-  }
+  }catch(e){}
 }
 
--dots span:nth-child(2) { animation-delay: 0.2s; }
-.ai-think-dots span:nth-child(3) { animation-delay: 0.4s; }
-@keyframes typingDot {
-  0%, 100% { transform: translateY(0); opacity: 0.4; }
-  50% { transform: translateY(-5px); opacity: 1; }
-}
-
-.ai-input-wrap {
-  display: flex; gap: 10px; padding: 16px 20px;
-  background: var(--bg3); border-top: 1px solid var(--border);
-  flex-shrink: 0; align-items: center;
-}
-.ai-input {
-  flex: 1; background: var(--bg4); border: 1px solid var(--border2);
-  border-radius: 12px; padding: 14px 16px; color: var(--text);
-  font-size: 14px; outline: none; transition: .2s;
-}
-.ai-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(124,92,252,.1); }
-.ai-send-btn {
-  background: linear-gradient(135deg, var(--accent), var(--accent3));
-  color: #fff; border: none; border-radius: 12px; width: 48px; height: 48px;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; font-size: 18px; transition: .2s; box-shadow: 0 4px 15px rgba(124,92,252,.4);
-}
-.ai-send-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(124,92,252,.6); }
-.ai-send-btn:active { transform: translateY(0); }
-</style>
-</head>
-<body>
-<div class="app-layout">
-
-  <!-- ── الشريط الجانبي (Sidebar) ── -->
-  <div class="sidebar">
-    <div class="sidebar-header">
-      <img src="https://i.ibb.co/60Zvqk5L/photo.jpg" alt="Logo" class="sidebar-logo">
-      <div class="sidebar-brand">DEV RIKO</div>
-      <div class="sidebar-user">
-        <div class="status-dot"></div>
-        <span>{{ username }}</span>
-      </div>
-    </div>
-    
-    <div class="sidebar-tabs">
-      {{ extra_tabs | safe }}
-    </div>
-
-    <div class="sidebar-footer">
-      <button class="logout-btn" onclick="location.href='/logout'">تسجيل الخروج</button>
-      <div style="text-align:center; margin-top:14px; font-size:12px; color:var(--text3); line-height:1.6;">
-         المطور: <a href="https://t.me/SHBH_S1" target="_blank" style="color:var(--accent); text-decoration:none; font-weight:700;">@SHBH_S1</a><br>
-         القناة: <a href="https://t.me/SHOBING_HXH" target="_blank" style="color:var(--accent); text-decoration:none; font-weight:700;">@SHOBING_HXH</a>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── المحتوى الرئيسي (Main Content) ── -->
-  <div class="main-content">
-    <div class="top-actions">
-       <div style="font-weight:700; font-size:16px; color:var(--text);">لوحة تحكم الاستضافة</div>
-       <div class="top-actions-right">
-          <div class="action-icon" onclick="location.reload()" title="تحديث الصفحة">🔄</div>
-       </div>
-    </div>
-
-    <div class="container">
-       
-       <!-- ── تبويب الذكاء الاصطناعي (AI Chat) ── -->
-       <div class="tab-content active" id="tab-ai">
-          <div class="ai-chat-wrap">
-             <div class="ai-header">
-                <div class="ai-header-left">
-                   <div class="ai-avatar-main">🤖</div>
-                   <div>
-                      <div class="ai-header-title">المساعد الذكي لـ RIKO</div>
-                      <div class="ai-header-sub">جاهز للمساعدة في الأكواد وإدارة السيرفر</div>
-                   </div>
-                </div>
-                <button class="ai-clear-btn" onclick="clearAiChat()">مسح المحادثة 🗑</button>
-             </div>
-             
-             <div class="ai-messages-box" id="ai-messages">
-                <div class="ai-msg">
-                   <div class="ai-bubble">
-                      <div class="ai-avatar">🤖</div>
-                      <div>
-                         <div class="ai-text">مرحباً بك في لوحة تحكم DEV RIKO 🚀!
-كيف يمكنني مساعدتك اليوم؟ يمكنك سؤالي عن إصلاح الأكواد، كتابة أوامر تشغيل، أو أي استفسار يخص الاستضافة.</div>
-                         <div class="ai-time">الآن</div>
-                      </div>
-                   </div>
-                </div>
-             </div>
-             
-             <div class="ai-thinking-box" id="ai-thinking" style="display:none;">
-                <div class="ai-thinking-label">
-                   <div class="ai-think-dots"><span></span><span></span><span></span></div>
-                   جاري التفكير...
-                </div>
-             </div>
-             
-             <div class="ai-input-wrap">
-                <input type="text" id="ai-chat-input" class="ai-input" placeholder="اكتب سؤالك أو مشكلتك هنا..." onkeydown="if(event.key==='Enter') sendAiMessage()">
-                <button class="ai-send-btn" onclick="sendAiMessage()">➤</button>
-             </div>
-          </div>
-       </div>
-
-       <!-- ── تضمين مساحات الأقسام الأخرى بناءً على الصلاحيات ── -->
-       {{ owner_panel_html | safe }}
-
-       <!-- ── تبويب الإعدادات (Settings) ── -->
-       <div class="tab-content" id="tab-settings">
-          <div class="section-card">
-             <div class="section-head">تغيير كلمة المرور</div>
-             <div class="section-body" style="max-width: 400px;">
-                <div class="field-block" style="margin-bottom:12px;">
-                   <label style="display:block; margin-bottom:6px; color:var(--text2); font-size:13px;">كلمة المرور الجديدة</label>
-                   <input type="password" id="new-password" placeholder="أدخل كلمة المرور الجديدة" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--bg3); color:white; outline:none;">
-                </div>
-                <button class="btn-action" style="background:var(--accent); color:white; padding:10px 16px; border:none; border-radius:8px; cursor:pointer; font-weight:600; width:100%; transition: .2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" onclick="changePassword()">تحديث كلمة المرور</button>
-             </div>
-          </div>
-       </div>
-
-    </div>
-  </div>
-</div>
-
-<script>
-// ── التبديل بين التبويبات ──
-document.querySelectorAll('.tab-item').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    
-    tab.classList.add('active');
-    const target = document.getElementById('tab-' + tab.dataset.tab);
-    if(target) target.classList.add('active');
-  });
-});
-
-// ── منطق محادثة الذكاء الاصطناعي ──
-function appendAiMessage(text, isUser = false) {
-  const box = document.getElementById('ai-messages');
-  const time = new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute:'2-digit' });
-  const msgDiv = document.createElement('div');
-  msgDiv.className = 'ai-msg ' + (isUser ? 'ai-user' : '');
-  
-  msgDiv.innerHTML = `
-    <div class="ai-bubble">
-      <div class="ai-avatar">${isUser ? '👤' : '🤖'}</div>
-      <div>
-        <div class="ai-text">${escapeHtml(text)}</div>
-        <div class="ai-time">${time}</div>
-      </div>
-    </div>
-  `;
-  box.appendChild(msgDiv);
-  box.scrollTop = box.scrollHeight;
-}
-
-async function sendAiMessage() {
-  const input = document.getElementById('ai-chat-input');
-  const text = input.value.trim();
-  if(!text) return;
-  
-  input.value = '';
-  appendAiMessage(text, true);
-  
-  const thinkingBox = document.getElementById('ai-thinking');
-  thinkingBox.style.display = 'block';
-  const box = document.getElementById('ai-messages');
-  box.scrollTop = box.scrollHeight;
-  
-  try {
-    const res = await fetch('/api/ai_chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: text })
-    });
-    const data = await res.json();
-    thinkingBox.style.display = 'none';
-    
-    if(data.success) {
-      appendAiMessage(data.reply);
-    } else {
-      appendAiMessage("⚠️ عذراً، حدث خطأ أثناء الاتصال بالخادم: " + (data.error || "خطأ غير معروف"));
-    }
-  } catch(e) {
-    thinkingBox.style.display = 'none';
-    appendAiMessage("⚠️ فشل الاتصال بالخادم الذكي. تأكد من اتصالك بالإنترنت.");
-  }
-}
-
-function clearAiChat() {
-  if(confirm("هل أنت متأكد من مسح المحادثة بالكامل؟")) {
-    const box = document.getElementById('ai-messages');
-    box.innerHTML = '';
-    appendAiMessage("تم تفريغ المحادثة بنجاح. كيف يمكنني مساعدتك الآن؟");
-  }
-}
-
-// ── دالة حماية النصوص من هجمات XSS ──
-function escapeHtml(unsafe) {
-    return (unsafe || '').toString()
-         .replace(/&/g, "&amp;")
-         .replace(/</g, "&lt;")
-         .replace(/>/g, "&gt;")
-         .replace(/"/g, "&quot;")
-         .replace(/'/g, "&#039;");
-}
-
-// ── تغيير كلمة المرور ──
-function changePassword() {
-  const pwd = document.getElementById('new-password').value;
-  if(!pwd) return alert("الرجاء إدخال كلمة المرور الجديدة أولاً.");
-  
-  fetch('/api/users/change_password', {
-     method: 'POST',
-     headers: { 'Content-Type': 'application/json' },
-     body: JSON.stringify({ new_password: pwd })
-  }).then(r => r.json()).then(d => {
-     if(d.success) {
-         alert("✅ تم تغيير كلمة المرور بنجاح");
-         document.getElementById('new-password').value = '';
-     } else {
-         alert("❌ خطأ: " + d.error);
-     }
-  }).catch(e => alert("حدث خطأ في الاتصال بالسيرفر."));
-}
-
-// ── تفعيل أول تبويب تلقائياً عند تحميل الصفحة ──
-window.onload = function() {
-  const firstTab = document.querySelector('.tab-item');
-  if (firstTab) firstTab.click();
-};
-</script>
-</body>
-</html>
-
-// ─── Announcements (الإعلانات) ───
-async function loadAnnouncements() {
-  try {
-    const r = await fetch('/api/owner/announcements');
-    const d = await r.json();
-    const list = document.getElementById('announcements-list');
-    if (!list) return;
-    if (!(d.announcements || []).length) {
-      list.innerHTML = '<div style="color:var(--text3); padding:15px; text-align:center; font-size:13px;">لا توجد إعلانات حالياً.</div>';
-      return;
-    }
-    list.innerHTML = '';
-    d.announcements.forEach(a => {
-      list.innerHTML += `
-        <div class="announcement-item" style="background:var(--bg4); border:1px solid var(--border); padding:12px; border-radius:8px; margin-bottom:10px; border-right: 4px solid var(--accent);">
-          <div style="font-weight:700; color:var(--text); font-size:14px; margin-bottom:4px;">📢 ${escapeHtml(a.title)}</div>
-          <div style="color:var(--text2); font-size:13px; line-height:1.5;">${escapeHtml(a.message)}</div>
-          <div style="text-align:left; margin-top:8px;">
-            <button class="btn-action danger" style="padding:4px 10px; font-size:11px;" onclick="deleteAnnouncement('${a.id}')">🗑 حذف</button>
-          </div>
-        </div>`;
-    });
-  } catch (e) {
-    console.error("Failed to load announcements");
-  }
-}
-
-async function postAnnouncement() {
-  const title = document.getElementById('ann-title-inp').value.trim();
-  const msg = document.getElementById('ann-msg-inp').value.trim();
-  if (!title || !msg) return toast('الرجاء إدخال العنوان والمحتوى', true);
-  
-  const r = await fetch('/api/owner/announcements/add', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title, message: msg })
-  });
-  const d = await r.json();
-  if (d.success) {
-    toast('✅ تم نشر الإعلان بنجاح');
-    document.getElementById('ann-title-inp').value = '';
-    document.getElementById('ann-msg-inp').value = '';
-    loadAnnouncements();
-  } else {
-    toast('❌ فشل النشر: ' + (d.error || ''), true);
-  }
-}
-
-async function deleteAnnouncement(id) {
-  if (!confirm('هل أنت متأكد من حذف هذا الإعلان؟')) return;
-  const r = await fetch('/api/owner/announcements/delete', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id })
-  });
-  const d = await r.json();
-  toast(d.success ? '🗑 تم الحذف' : '❌ فشل الحذف', !d.success);
-  if (d.success) loadAnnouncements();
-}
-
-// ─── Pending Users (طلبات التسجيل) ───
-async function loadPendingUsers() {
-  try {
-    const r = await fetch('/api/owner/users/pending');
-    const d = await r.json();
-    const list = document.getElementById('pending-users-list');
-    if (!list) return;
-    if (!(d.users || []).length) {
-      list.innerHTML = '<div style="color:var(--text3); padding:15px; text-align:center; font-size:13px;">لا توجد طلبات تسجيل معلقة.</div>';
-      return;
-    }
-    list.innerHTML = '';
-    d.users.forEach(u => {
-      list.innerHTML += `
-        <div class="pending-user-card" style="display:flex; justify-content:space-between; align-items:center; background:var(--bg3); padding:12px; border-radius:8px; margin-bottom:8px;">
+// ─── Servers Modal ───
+function openServersModal(){ loadServersModal(); openModal('servers-modal'); }
+async function loadServersModal(){
+  const list=document.getElementById('servers-modal-list');
+  list.innerHTML='<div style="color:var(--text2);text-align:center;padding:20px">Loading...</div>';
+  try{
+    if(IS_MASTER){
+      const r=await fetch('/api/users/list');
+      const d=await r.json();
+      if(!(d.users||[]).length){ list.innerHTML='<div style="color:var(--text3);padding:20px;text-align:center">No servers.</div>'; return; }
+      list.innerHTML='';
+      d.users.forEach(u=>{
+        const card=document.createElement('div');
+        card.className='srv-card';
+        card.innerHTML=`
           <div>
-            <div style="font-weight:600; color:var(--text); font-size:14px;">👤 ${escapeHtml(u.username)}</div>
-            <div style="color:var(--text3); font-size:12px;">طلب إنشاء سيرفر جديد</div>
+            <div class="srv-name">🖥 ${escapeHtml(u.username)}</div>
+            <div class="srv-meta">Sessions: ${u.active_sessions||0}/${u.max_sessions||1} · Servers: ${u.max_servers||1}</div>
           </div>
-          <div style="display:flex; gap:6px;">
-            <button class="btn-action" style="background:var(--green); color:#fff; font-size:12px; padding:6px 12px;" onclick="approveUser('${escapeHtml(u.username)}')">✔ قبول</button>
-            <button class="btn-action danger" style="font-size:12px; padding:6px 12px;" onclick="rejectUser('${escapeHtml(u.username)}')">✖ رفض</button>
-          </div>
-        </div>`;
+          <button class="srv-del-btn" onclick="deleteUser('${escapeHtml(u.username)}')">🗑</button>`;
+        list.appendChild(card);
+      });
+    } else {
+      const r=await fetch('/api/profile');
+      const d=await r.json();
+      list.innerHTML=`<div class="srv-card"><div><div class="srv-name">🖥 ${escapeHtml(d.username||'')}</div><div class="srv-meta">Your server</div></div><span style="color:var(--green);font-size:12px;font-weight:600">● Online</span></div>`;
+    }
+  }catch(e){ list.innerHTML='<div style="color:var(--red);padding:20px">Failed to load</div>'; }
+}
+
+// ─── Search ───
+function loadSearch(){
+  const q=prompt('Search files:'); if(!q) return;
+  fetch('/api/exec',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({command:`find "${USER_PATH}" -name "*${q}*" 2>/dev/null | head -30`, cwd:USER_PATH})})
+    .then(r=>r.json()).then(d=>{
+      if(activeTerminalId){
+        const box=document.getElementById('console-output-'+activeTerminalId);
+        if(box){ const footer=document.getElementById('term-footer-'+activeTerminalId); while(box.firstChild&&box.firstChild!==footer) box.removeChild(box.firstChild); }
+      }
+      (d.output||'').split('\n').forEach(l=>{ if(l.trim()) appendConsole(l); });
+      document.querySelectorAll('.tab-item').forEach(t=>{ if(t.dataset.tab==='console') t.click(); });
     });
-  } catch (e) {
-    console.error("Failed to load pending users");
-  }
 }
 
-async function approveUser(username) {
-  const r = await fetch('/api/owner/users/approve', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username })
-  });
-  const d = await r.json();
-  toast(d.success ? `✅ تم قبول ${username}` : '❌ فشل القبول', !d.success);
-  if (d.success) {
+// ─── Owner Panel ───
+async function loadOwnerPanel(){
+  if(!IS_MASTER) return;
+  try{
+    const [statsR,usersR,maintR,ownerR]=await Promise.all([
+      fetch('/api/owner/stats'),fetch('/api/users/list'),
+      fetch('/api/owner/maintenance'),fetch('/api/owner/config')
+    ]);
+    const stats=await statsR.json();
+    const users=await usersR.json();
+    const maint=await maintR.json();
+    const ownerCfg=await ownerR.json();
+    document.getElementById('ow-users').textContent=(users.users||[]).length;
+    document.getElementById('ow-servers').textContent=stats.total_servers||0;
+    document.getElementById('ow-bots').textContent=stats.active_bots||0;
+    document.getElementById('ow-zips').textContent=stats.zip_files||0;
+    const chk=document.getElementById('maint-toggle-chk');
+    if(chk) chk.checked=maint.enabled||false;
+    const msgEl=document.getElementById('maint-msg');
+    if(msgEl) msgEl.value=maint.message||'';
+    const badge=document.getElementById('bot-status-badge');
+    const botPanel=document.getElementById('bot-control-panel');
+    if(ownerCfg.bot_linked){
+      if(badge) badge.innerHTML='<span style="color:var(--green);font-size:13px;font-weight:700">✅ Bot Linked & Active</span>';
+      if(botPanel) botPanel.style.display='block';
+    } else {
+      if(badge) badge.innerHTML='<span style="color:var(--yellow);font-size:13px;font-weight:700">⚠️ Bot Not Linked</span>';
+      if(botPanel) botPanel.style.display='none';
+    }
+    const pnEl=document.getElementById('panel-name-inp');
+    const pwEl=document.getElementById('panel-welcome-inp');
+    if(pnEl) pnEl.value=ownerCfg.panel_name||'SERVER HUB';
+    if(pwEl) pwEl.value=ownerCfg.welcome_msg||'';
+    loadOwnerZips();
+    loadAnnouncements();
     loadPendingUsers();
-    loadOwnerPanel(); // Refresh stats
-  }
+  }catch(e){ toast('Failed to load owner panel', true); }
 }
 
-async function rejectUser(username) {
-  if (!confirm(`هل أنت متأكد من رفض طلب ${username}؟`)) return;
-  const r = await fetch('/api/owner/users/reject', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username })
-  });
-  const d = await r.json();
-  toast(d.success ? `🗑 تم رفض وحذف ${username}` : '❌ فشل الرفض', !d.success);
-  if (d.success) loadPendingUsers();
+async function toggleMaintenance(){
+  const chk=document.getElementById('maint-toggle-chk');
+  const msg=document.getElementById('maint-msg').value;
+  const r=await fetch('/api/owner/maintenance',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:chk.checked,message:msg})});
+  const d=await r.json();
+  toast(d.success?(chk.checked?'🔧 Maintenance ON':'✅ Maintenance OFF'):'Failed', !d.success);
 }
 
-async function deleteUser(username) {
-  if (!confirm(`تحذير: هل أنت متأكد من حذف السيرفر الخاص بـ ${username} نهائياً؟`)) return;
-  const r = await fetch('/api/users/delete', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username })
-  });
-  const d = await r.json();
-  toast(d.success ? `🗑 تم حذف السيرفر بنجاح` : '❌ حدث خطأ أثناء الحذف', !d.success);
-  if (d.success) {
-    loadServersModal();
+async function saveMaintMsg(){
+  const chk=document.getElementById('maint-toggle-chk');
+  const msg=document.getElementById('maint-msg').value;
+  const r=await fetch('/api/owner/maintenance',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:chk.checked,message:msg})});
+  const d=await r.json();
+  toast(d.success?'✅ Saved':'Failed', !d.success);
+}
+
+async function linkBot(){
+  const token=document.getElementById('tg-token').value.trim();
+  const ownerId=document.getElementById('tg-ownerid').value.trim();
+  if(!token||!ownerId){ toast('Enter token and owner ID', true); return; }
+  const statusEl=document.getElementById('bot-link-status');
+  statusEl.textContent='⏳ Linking...';
+  const r=await fetch('/api/owner/bot/link',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,owner_id:ownerId})});
+  const d=await r.json();
+  if(d.success){
+    statusEl.style.color='var(--green)';
+    statusEl.textContent='✅ Bot linked: @'+(d.bot_username||'');
+    toast('✅ Bot linked!');
     loadOwnerPanel();
+  } else {
+    statusEl.style.color='var(--red)';
+    statusEl.textContent='❌ '+(d.error||'Failed');
+    toast('❌ '+( d.error||'Failed'), true);
   }
 }
 
-// ─── Utilities & UI (الأدوات وتنبيهات النظام) ───
-function toast(msg, isError = false, isSilent = false) {
-  if (isSilent) { console.log(msg); return; }
-  
-  const toastContainer = document.getElementById('toast-container') || (function() {
-    const c = document.createElement('div');
-    c.id = 'toast-container';
-    c.style.cssText = 'position:fixed; bottom:20px; left:20px; display:flex; flex-direction:column; gap:10px; z-index:9999;';
-    document.body.appendChild(c);
-    return c;
-  })();
-
-  const t = document.createElement('div');
-  t.style.cssText = `
-    background: ${isError ? 'var(--red)' : 'var(--accent)'};
-    color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 14px; font-weight: 600;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3); opacity: 0; transform: translateY(20px);
-    transition: all 0.3s ease; display: flex; align-items: center; gap: 8px;
-  `;
-  t.innerHTML = msg;
-  toastContainer.appendChild(t);
-  
-  // Animation
-  setTimeout(() => { t.style.opacity = '1'; t.style.transform = 'translateY(0)'; }, 10);
-  setTimeout(() => { 
-    t.style.opacity = '0'; t.style.transform = 'translateY(20px)'; 
-    setTimeout(() => t.remove(), 300);
-  }, 4000);
+async function unlinkBot(){
+  if(!confirm('Unlink bot?')) return;
+  const r=await fetch('/api/owner/bot/unlink',{method:'POST'});
+  const d=await r.json();
+  toast(d.success?'Bot unlinked':'Failed', !d.success);
+  if(d.success) loadOwnerPanel();
 }
 
-function escapeHtml(text) {
-  const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-  return (text || '').toString().replace(/[&<>"']/g, m => map[m]);
+async function botAction(action){
+  const r=await fetch('/api/owner/bot/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action})});
+  const d=await r.json();
+  const bc=document.getElementById('bot-console');
+  if(bc) bc.textContent+='['+new Date().toLocaleTimeString()+'] '+action+': '+(d.message||d.error||'done')+'\n';
+  toast(d.success?'Bot '+action:'Failed', !d.success);
 }
 
-// ─── RIKO Identity & Console Branding (حقوق النظام) ───
-function applyDevIdentity() {
-  // Console Log Branding
-  console.log(
-    "%c 🚀 SERVER HUB - DEV RIKO %c", 
-    "color: white; background: linear-gradient(135deg, #7c5cfc, #ff5c93); font-size: 20px; padding: 10px 20px; border-radius: 8px; font-weight: bold;", 
-    ""
-  );
-  console.log(
-    "%c المطور: @SHBH_S1 | القناة: @SHOBING_HXH ", 
-    "color: #7c5cfc; font-size: 14px; font-weight: bold; margin-top: 5px;"
-  );
-  console.log("%c النظام يعمل بكفاءة ومحمي بواسطة إصدار RIKO V2.0", "color: #4CAF50; font-size: 12px;");
+async function sendBotCmd(){
+  const inp=document.getElementById('bot-cmd-input');
+  const cmd=inp.value.trim(); if(!cmd) return;
+  inp.value='';
+  const r=await fetch('/api/owner/bot/cmd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:cmd})});
+  const d=await r.json();
+  const bc=document.getElementById('bot-console');
+  if(bc){ bc.textContent+='» '+cmd+'\n'+(d.output||d.error||'')+'\n'; bc.scrollTop=bc.scrollHeight; }
 }
 
-// ─── Initialize Dashboard ───
-document.addEventListener('DOMContentLoaded', () => {
-  applyDevIdentity();
-  if (typeof IS_MASTER !== 'undefined' && IS_MASTER) {
-    loadOwnerPanel();
-    // Auto-refresh stats every 60 seconds
-    setInterval(refreshBotStats, 60000);
-  }
-});
+async function refreshBotStats(){
+  const r=await fetch('/api/owner/stats');
+  const d=await r.json();
+  document.getElementById('ow-servers').textContent=d.total_servers||0;
+  document.getElementById('ow-bots').textContent=d.active_bots||0;
+  toast('Stats refreshed',false,true);
+}
 
-// ─── Security Alerts & Administration Panel (RIKO Center) ───────────────────
+async function savePanelSettings(){
+  const name=document.getElementById('panel-name-inp').value.trim();
+  const msg=document.getElementById('panel-welcome-inp').value.trim();
+  const r=await fetch('/api/owner/config/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({panel_name:name,welcome_msg:msg})});
+  const d=await r.json();
+  toast(d.success?'✅ Settings saved':'Failed', !d.success);
+}
 
+async function loadOwnerZips(){
+  try{
+    const r=await fetch('/api/owner/zips');
+    const d=await r.json();
+    const list=document.getElementById('owner-zip-list'); if(!list) return;
+    if(!(d.zips||[]).length){ list.innerHTML='<div style="color:var(--text3);padding:10px">No ZIP files.</div>'; return; }
+    list.innerHTML='';
+    d.zips.forEach(z=>{
+      list.innerHTML+=`<div class="zip-item"><div><div class="z-name">📦 ${escapeHtml(z.name)}</div><div class="z-size">${escapeHtml(z.user||'')} · ${escapeHtml(z.size||'')}</div></div><div style="display:flex;gap:6px"><button class="btn-action gray" style="font-size:11px" onclick="window.open('/api/owner/zips/download?path=${encodeURIComponent(z.path)}','_blank')">⬇</button><button class="btn-action danger" style="font-size:11px" onclick="deleteOwnerZip('${escapeHtml(z.path)}')">🗑</button></div></div>`;
+    });
+  }catch(e){}
+}
+
+async function downloadAllZips(){ window.open('/api/owner/zips/download-all','_blank'); }
+
+async function deleteOwnerZip(path){
+  if(!confirm('Delete ZIP?')) return;
+  const r=await fetch('/api/owner/zips/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path})});
+  const d=await r.json();
+  toast(d.success?'🗑 Deleted':'Failed', !d.success);
+  if(d.success) loadOwnerZips();
+}
+
+// ─── Security Alerts ────────────────────────────────────────────────────────
 async function loadSecurityAlerts(){
   const el=document.getElementById('security-alerts-list');
   if(!el) return;
-  el.innerHTML='<div style="color:var(--text2);padding:10px;text-align:center">⏳ جاري فحص النظام وتأمين لوحة RIKO...</div>';
+  el.innerHTML='<div style="color:var(--text2);padding:10px;text-align:center">⏳ جاري التحميل...</div>';
   try{
     const r=await fetch('/api/security/alerts');
     const d=await r.json();
     if(!(d.alerts||[]).length){
-      el.innerHTML='<div style="color:var(--green);padding:12px;text-align:center;font-size:13px;font-weight:600">✅ نظام الحماية مستقر — جميع خوادم RIKO آمنة ومحمية بالكامل!</div>';
+      el.innerHTML='<div style="color:var(--green);padding:12px;text-align:center;font-size:13px">✅ لا توجد تنبيهات أمنية — كل شيء نظيف!</div>';
       return;
     }
     el.innerHTML='';
@@ -5308,7 +3739,6 @@ async function loadSecurityAlerts(){
         background:${reviewed?'var(--bg2)':'rgba(248,81,73,.05)'};
         border:1px solid ${reviewed?'var(--border)':'rgba(248,81,73,.3)'};
         border-radius:10px;padding:12px 14px;margin-bottom:8px;
-        transition: 0.2s ease-in-out;
       `;
       div.innerHTML=`
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap">
@@ -5318,15 +3748,15 @@ async function loadSecurityAlerts(){
               <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:6px">#${escapeHtml(a.id||'')}</span>
             </div>
             <div style="font-size:11px;color:var(--text2);margin-bottom:4px">
-              👤 User: ${escapeHtml(a.username||'—')} &nbsp;·&nbsp; 🌐 IP: ${escapeHtml(a.ip||'—')} &nbsp;·&nbsp; 🕐 Time: ${escapeHtml(a.time||'—')}
+              👤 ${escapeHtml(a.username||'—')} &nbsp;·&nbsp; 🌐 ${escapeHtml(a.ip||'—')} &nbsp;·&nbsp; 🕐 ${escapeHtml(a.time||'—')}
             </div>
             <div style="font-size:11px;color:#ffcc00;font-family:monospace;word-break:break-word">
-              📌 Threats: ${escapeHtml(threats)}
+              ${escapeHtml(threats)}
             </div>
           </div>
           <div style="display:flex;gap:6px;flex-shrink:0">
             ${!reviewed?`<button class="btn-action green" style="font-size:10px;padding:5px 10px"
-              onclick="markAlertReviewed('${escapeHtml(a.id)}',this)">✓ مراجعة</button>`:''}
+              onclick="markAlertReviewed('${escapeHtml(a.id)}',this)">✓ تمت المراجعة</button>`:''}
             <button class="btn-action danger" style="font-size:10px;padding:5px 10px"
               onclick="deleteAlert('${escapeHtml(a.id)}',this)">🗑</button>
           </div>
@@ -5334,7 +3764,7 @@ async function loadSecurityAlerts(){
       el.appendChild(div);
     });
   }catch(e){
-    el.innerHTML='<div style="color:var(--red);padding:10px">❌ فشل تحميل جدار الحماية الأمني.</div>';
+    el.innerHTML='<div style="color:var(--red);padding:10px">فشل تحميل التنبيهات</div>';
   }
 }
 
@@ -5342,135 +3772,263 @@ async function markAlertReviewed(id, btn){
   const r=await fetch('/api/security/alerts/review',{method:'POST',
     headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
   const d=await r.json();
-  if(d.success){ toast('✅ تم وسم التنبيه كمُراجع',false,true); loadSecurityAlerts(); }
-  else toast('❌ فشل تعديل حالة التنبيه',true);
+  if(d.success){ toast('✅ تمت المراجعة',false,true); loadSecurityAlerts(); }
+  else toast('فشل',true);
 }
 
 async function deleteAlert(id, btn){
   const r=await fetch('/api/security/alerts/delete',{method:'POST',
     headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
   const d=await r.json();
-  if(d.success){ toast('🗑 تم حذف التنبيه الأمني بنجاح',false,true); loadSecurityAlerts(); }
-  else toast('❌ فشل حذف التنبيه',true);
+  if(d.success){ toast('🗑 تم الحذف',false,true); loadSecurityAlerts(); }
+  else toast('فشل',true);
 }
 
 async function clearSecurityAlerts(){
-  if(!confirm('هل تود حقاً مسح سجل التنبيهات الأمنية بالكامل؟')) return;
+  if(!confirm('حذف جميع التنبيهات الأمنية؟')) return;
   const r=await fetch('/api/security/alerts/clear',{method:'POST'});
   const d=await r.json();
-  toast(d.success?'🗑 تم تصفير سجل الحماية بنجاح':'❌ فشل تنفيذ الأمر',!d.success);
+  toast(d.success?'🗑 تم مسح السجل':'فشل',!d.success);
   if(d.success) loadSecurityAlerts();
 }
-
-// ─── Announcements & Custom Broadcasts (RIKO Broadcast) ─────────────────────
 
 async function loadAnnouncements(){
   try{
     const r=await fetch('/api/owner/announcements');
     const d=await r.json();
     const list=document.getElementById('ann-list'); if(!list) return;
-    if(!(d.list||[]).length){ list.innerHTML='<div style="color:var(--text3);padding:8px;text-align:center">📢 لا توجد إعلانات منشورة حالياً</div>'; return; }
+    if(!(d.list||[]).length){ list.innerHTML='<div style="color:var(--text3);padding:8px">No announcements.</div>'; return; }
     list.innerHTML='';
     d.list.forEach((a,i)=>{
-      list.innerHTML+=`<div class="zip-item" style="border-left: 3px solid var(--accent)">
-        <div>
-          <div class="z-name" style="font-weight:600; color:var(--text)">${escapeHtml(a.text)}</div>
-          <div class="z-size" style="font-size:11px; color:var(--text3); margin-top:3px;">⏰ ${escapeHtml(a.time||'')}</div>
-        </div>
-        <button class="btn-action danger" style="font-size:11px; padding:4px 8px" onclick="deleteAnn(${i})">🗑 حذف</button>
-      </div>`;
+      list.innerHTML+=`<div class="zip-item"><div><div class="z-name">${escapeHtml(a.text)}</div><div class="z-size">${escapeHtml(a.time||'')}</div></div><button class="btn-action danger" style="font-size:11px" onclick="deleteAnn(${i})">🗑</button></div>`;
     });
-  }catch(e){ console.error("Error loading announcements"); }
+  }catch(e){}
 }
 
 async function addAnnouncement(){
-  const txt=document.getElementById('ann-txt').value.trim(); if(!txt) return toast('⚠️ الرجاء كتابة الإعلان أولاً', true);
+  const txt=document.getElementById('ann-txt').value.trim(); if(!txt) return;
   const r=await fetch('/api/owner/announcements/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:txt})});
   const d=await r.json();
-  toast(d.success?'📢 تم نشر الإعلان بنجاح فى لوحة RIKO':'❌ فشل إضافة الإعلان', !d.success);
+  toast(d.success?'📢 Added':'Failed', !d.success);
   if(d.success){ document.getElementById('ann-txt').value=''; loadAnnouncements(); }
 }
 
 async function deleteAnn(idx){
-  if(!confirm('هل تود حذف هذا الإعلان؟')) return;
   const r=await fetch('/api/owner/announcements/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({index:idx})});
   const d=await r.json();
-  toast(d.success?'🗑 تم الحذف بنجاح':'❌ فشل حذف الإعلان', !d.success);
+  toast(d.success?'Deleted':'Failed', !d.success);
   if(d.success) loadAnnouncements();
 }
 
 async function ownerBroadcast(){
   const txt=document.getElementById('ann-txt').value.trim();
-  if(!txt){ toast('⚠️ الرجاء إدخال نص الرسالة الجماعية', true); return; }
+  if(!txt){ toast('Enter message first', true); return; }
   const r=await fetch('/api/owner/broadcast',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:txt})});
   const d=await r.json();
-  toast(d.success?`📡 تم البث بنجاح وإرسال الرسالة إلى ${d.count||0} مستخدم`:'❌ فشل إرسال البث الجماعي', !d.success);
+  toast(d.success?`📡 Sent to ${d.count||0} users`:'Failed', !d.success);
 }
-
-// ─── User Registrations & Server Management ──────────────────────────────────
 
 async function loadPendingUsers(){
   try{
     const r=await fetch('/api/users/pending');
     const d=await r.json();
     const el=document.getElementById('pending-users-list'); if(!el) return;
-    if(!(d.users||[]).length){ el.innerHTML='<div style="color:var(--text3);padding:14px;text-align:center;font-size:13px">📋 لا توجد طلبات اشتراك معلقة حالياً.</div>'; return; }
+    if(!(d.users||[]).length){ el.innerHTML='<div style="color:var(--text3);padding:10px">No pending registrations.</div>'; return; }
     el.innerHTML='';
     d.users.forEach(u=>{
-      el.innerHTML+=`<div class="pending-card" style="background:var(--bg3); border:1px solid var(--border); padding:12px; border-radius:10px; display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <div>
-          <div class="p-user" style="font-weight:700; color:var(--text);">📋 ${escapeHtml(u.username)} 
-             ${u.tg_username?`<a href="https://t.me/${escapeHtml(u.tg_username)}" target="_blank" style="color:#60a5fa; font-size:12px; margin-left:6px; text-decoration:none;">🔵 @${escapeHtml(u.tg_username)}</a>`:''}
-          </div>
-          <div class="p-time" style="font-size:11px; color:var(--text3); margin-top:3px;">📅 التسجيل: ${escapeHtml(u.created||'—')}</div>
-        </div>
+      el.innerHTML+=`<div class="pending-card">
+        <div><div class="p-user">📋 ${escapeHtml(u.username)} ${u.tg_username?`<span style="color:#60a5fa;font-size:11px">🔵 @${escapeHtml(u.tg_username)}</span>`:''}</div><div class="p-time">Registered: ${escapeHtml(u.created||'')}</div></div>
         <div style="display:flex;gap:6px">
-          <button class="btn-action green" style="padding:6px 12px; font-size:12px;" onclick="approveUser('${escapeHtml(u.username)}')">✅ قبول</button>
-          <button class="btn-action danger" style="padding:6px 12px; font-size:12px;" onclick="deleteUser('${escapeHtml(u.username)}')">❌ رفض</button>
+          <button class="btn-action green" onclick="approveUser('${escapeHtml(u.username)}')">✅ Approve</button>
+          <button class="btn-action danger" onclick="deleteUser('${escapeHtml(u.username)}')">❌ Reject</button>
         </div>
       </div>`;
     });
-  }catch(e){ console.error("Error loading pending users"); }
+  }catch(e){}
 }
-
-async function approveUser(username){
-  const r=await fetch('/api/users/approve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username})});
-  const d=await r.json();
-  if(d.success){
-    toast(`✅ تم تفعيل حساب ${username} بنجاح وإطلاق السيرفر`);
-    loadPendingUsers();
-  } else {
-    toast(`❌ فشل قبول المستخدم: ${d.error||''}`, true);
-  }
-}
-
-// ─── Core System Control (RIKO Advanced Actions) ───────────────────────────
 
 async function ownerAction(action){
-  if(action!=='restart_panel' && !confirm('تأكيد الإجراء: هل أنت متأكد من تنفيذ ['+action+']؟')) return;
+  if(action!=='restart_panel'&&!confirm('Confirm: '+action+'?')) return;
   const r=await fetch('/api/owner/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action})});
   const d=await r.json();
-  toast(d.success?'⚙️ تم تنفيذ العملية بنجاح: '+action:'❌ فشل تنفيذ الإجراء الأمني', !d.success);
+  toast(d.success?'✅ Done: '+action:'Failed', !d.success);
 }
 
 function fmtExpiry(exp){
-  if(!exp||exp==='∞') return '∞ غير محدود';
+  if(!exp||exp==='∞') return '∞';
   try{
     const d=new Date(exp);
     const diff=Math.ceil((d-new Date())/(1000*86400));
-    return diff>0?`⏳ متبقي ${diff} يوم`:'❌ منتهي الصلاحية';
+    return diff>0?`Expires in ${diff} days`:'❌ Expired';
   }catch(e){ return exp; }
 }
 
-// دالة مضافة لربط ودعم قنوات وحقوق التحديثات تلقائياً داخل النظام
-function checkRikoIntegrity(){
-  console.log("%c👑 Developed by RIKO | Dev: @SHBH_S1 | Channel: @SHOBING_HXH", "color:#7c5cfc; font-weight:bold; font-size:12px;");
-}
-checkRikoIntegrity();
+// ─── AI Chat ───
+const AI_API_KEY = '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';
+const AI_BASE_URL = 'https://integrate.api.nvidia.com/v1';
+const AI_MODEL = 'openai/gpt-oss-120b';
+let aiHistory = [];
+let aiStreaming = false;
 
+function aiKeyDown(e){
+  if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendAiMessage(); }
+}
+
+function aiQuick(txt){
+  document.getElementById('ai-input').value = txt;
+  document.getElementById('ai-input').focus();
+}
+
+function clearAiChat(){
+  aiHistory = [];
+  const box = document.getElementById('ai-messages');
+  box.innerHTML = `<div class="ai-msg ai-assistant"><div class="ai-bubble"><span class="ai-avatar">🤖</span><div class="ai-text">تم مسح المحادثة. كيف يمكنني مساعدتك؟</div></div></div>`;
+}
+
+function renderAiText(raw){
+  // basic markdown: code blocks, inline code, bold
+  return raw
+    .replace(/```(\w*)\n?([\s\S]*?)```/g, (_,lang,code)=>`<pre><code>${escapeHtml(code.trim())}</code></pre>`)
+    .replace(/`([^`]+)`/g, (_,c)=>`<code>${escapeHtml(c)}</code>`)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g,'<br>');
+}
+
+function appendAiMsg(role, text, isStreaming=false){
+  const box = document.getElementById('ai-messages');
+  const isUser = role==='user';
+  const div = document.createElement('div');
+  div.className = `ai-msg ${isUser?'ai-user':'ai-assistant'}`;
+  div.id = isStreaming ? 'ai-streaming-msg' : '';
+  div.innerHTML = `<div class="ai-bubble">
+    <span class="ai-avatar">${isUser?'👤':'🤖'}</span>
+    <div class="ai-text" id="${isStreaming?'ai-stream-text':''}">${isUser?escapeHtml(text):renderAiText(text)}</div>
+  </div>`;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+  return div;
+}
+
+function showAiTyping(){
+  const box = document.getElementById('ai-messages');
+  const div = document.createElement('div');
+  div.className = 'ai-msg ai-assistant';
+  div.id = 'ai-typing-indicator';
+  div.innerHTML = `<div class="ai-bubble"><span class="ai-avatar">🤖</span><div class="ai-text"><div class="ai-typing"><span></span><span></span><span></span></div></div></div>`;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+function removeAiTyping(){
+  const t = document.getElementById('ai-typing-indicator');
+  if(t) t.remove();
+}
+
+async function sendAiMessage(){
+  if(aiStreaming) return;
+  const inp = document.getElementById('ai-input');
+  const msg = inp.value.trim();
+  if(!msg) return;
+  inp.value = '';
+  inp.style.height = 'auto';
+
+  appendAiMsg('user', msg);
+  aiHistory.push({role:'user', content: msg});
+
+  aiStreaming = true;
+  const btn = document.getElementById('ai-send-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳';
+
+  showAiTyping();
+
+  try{
+    const resp = await fetch('/api/ai/chat', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({messages: aiHistory})
+    });
+
+    if(!resp.ok){
+      removeAiTyping();
+      const err = await resp.json();
+      appendAiMsg('assistant', '❌ خطأ: ' + (err.error||'فشل الاتصال'));
+      aiStreaming = false; btn.disabled=false; btn.textContent='➤ إرسال';
+      return;
+    }
+
+    removeAiTyping();
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let fullText = '';
+    let reasoningText = '';
+
+    const msgDiv = appendAiMsg('assistant', '', true);
+    const textEl = document.getElementById('ai-stream-text');
+
+    while(true){
+      const {done, value} = await reader.read();
+      if(done) break;
+      const chunk = decoder.decode(value, {stream:true});
+      const lines = chunk.split('\n');
+      for(const line of lines){
+        if(!line.startsWith('data:')) continue;
+        const data = line.slice(5).trim();
+        if(data==='[DONE]') break;
+        try{
+          const j = JSON.parse(data);
+          const delta = j.choices?.[0]?.delta || {};
+          if(delta.reasoning_content){
+            reasoningText += delta.reasoning_content;
+            const rb = document.getElementById('ai-reasoning');
+            const tb = document.getElementById('ai-thinking-box');
+            if(rb){ rb.textContent = reasoningText; rb.scrollTop=rb.scrollHeight; }
+            if(tb) tb.style.display='block';
+          }
+          if(delta.content){
+            fullText += delta.content;
+            if(textEl) textEl.innerHTML = renderAiText(fullText);
+            document.getElementById('ai-messages').scrollTop = 999999;
+          }
+        }catch(e){}
+      }
+    }
+    if(msgDiv) msgDiv.id='';
+    const textFinal = document.getElementById('ai-stream-text');
+    if(textFinal) textFinal.id='';
+
+    // hide thinking after done
+    setTimeout(()=>{
+      const tb = document.getElementById('ai-thinking-box');
+      if(tb) tb.style.display='none';
+      const rb = document.getElementById('ai-reasoning');
+      if(rb) rb.textContent='';
+    }, 2000);
+
+    aiHistory.push({role:'assistant', content: fullText});
+    if(aiHistory.length > 20) aiHistory = aiHistory.slice(-20);
+
+  }catch(err){
+    removeAiTyping();
+    appendAiMsg('assistant','❌ خطأ في الاتصال: '+err.message);
+  }
+
+  aiStreaming = false;
+  btn.disabled = false;
+  btn.textContent = '➤ إرسال';
+}
+
+// ─── Init ───
+loadProfile().then(()=>{ loadStats(); loadFiles(); initTerminals(); });
+statsInterval = setInterval(loadStats, 5000);
+</script>
+
+</body></html>
+'''
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  20.  Flask Routes — Powered by RIKO Control Engine
+#  20.  Flask Routes
 # ─────────────────────────────────────────────────────────────────────────────
 
 @app.route('/')
@@ -5485,50 +4043,40 @@ def index():
 def login_page():
     if request.method == 'GET':
         return render_template_string(AUTH_TEMPLATE, error=None, error_type=None)
-        
     username = request.form.get('username','').strip()
     password = request.form.get('password','')
-    
-    if not username or not password:
-        return render_template_string(AUTH_TEMPLATE, error='❌ يرجى إدخال اسم المستخدم وكلمة المرور', error_type='login')
-        
     h = hashlib.sha256(password.encode()).hexdigest()
     
-    # Master Account Login (RIKO Admin Engine)
     if username == MASTER_USERNAME and h == MASTER_PASSWORD_HASH:
         session.permanent = True
         session['logged_in'] = True
         session['username'] = username
         register_session(username)
-        log_activity(username, 'auth.login', 'Master Admin login successfully')
+        log_activity(username, 'auth.login', 'Master login')
         return redirect('/')
     
     users = load_users()
     if username in users and users[username].get('password') == h:
-        # Check Account Active State (Admin Approval Requirement)
         if not users[username].get('active', False):
-            log_activity(username, 'auth.login.denied', 'Pending RIKO approval')
+            log_activity(username, 'auth.login.denied', 'Pending approval')
             return render_template_string(AUTH_TEMPLATE,
-                error='⚠️ حسابك في انتظار موافقة الإدارة التابعة لـ RIKO. تواصل معنا لتفعيله عبر: @SHBH_S1',
+                error='⚠️ Your account is pending Admin approval. Contact SHBH_S1',
                 error_type='login')
-                
-        # Session Limit & Expiry Validation
         if can_user_login(username):
             session.permanent = True
             session['logged_in'] = True
             session['username'] = username
             register_session(username)
             ensure_user_folder(username)
-            log_activity(username, 'auth.login', 'User logged in successfully')
+            log_activity(username, 'auth.login', 'User login')
             return redirect('/')
         else:
-            log_activity(username, 'auth.login.denied', 'Session limit reached or account expired')
             return render_template_string(AUTH_TEMPLATE,
-                error='❌ تم الوصول للحد الأقصى من الجلسات النشطة أو انتهت صلاحية حسابك.',
+                error='❌ Session limit reached or account expired.',
                 error_type='login')
     
-    log_activity(username or '-', 'auth.login.failed', 'Invalid credentials supplied')
-    return render_template_string(AUTH_TEMPLATE, error='❌ خطأ في اسم المستخدم أو كلمة المرور', error_type='login')
+    log_activity(username or '-', 'auth.login.failed', 'Invalid credentials')
+    return render_template_string(AUTH_TEMPLATE, error='❌ Invalid credentials', error_type='login')
 
 @app.route('/register', methods=['POST'])
 def register_page():
@@ -5537,25 +4085,24 @@ def register_page():
     confirm     = request.form.get('confirm_password','')
     tg_username = request.form.get('tg_username','').strip().lstrip('@')
 
-    # Input Sanitization & Validation
     if not username or not password:
         return render_template_string(AUTH_TEMPLATE, error='❌ يرجى ملء جميع الحقول المطلوبة', error_type='register')
     if not tg_username:
-        return render_template_string(AUTH_TEMPLATE, error='❌ يرجى إدخال حسابك على التيليجرام للمتابعة والتحقق', error_type='register')
+        return render_template_string(AUTH_TEMPLATE, error='❌ يرجى إدخال يوزر التيليجرام', error_type='register')
     if password != confirm:
         return render_template_string(AUTH_TEMPLATE, error='❌ كلمات المرور غير متطابقة', error_type='register')
     if len(username) < 3:
-        return render_template_string(AUTH_TEMPLATE, error='❌ يجب ألا يقل اسم المستخدم عن 3 أحرف', error_type='register')
+        return render_template_string(AUTH_TEMPLATE, error='❌ اسم المستخدم 3 أحرف على الأقل', error_type='register')
     if len(password) < 4:
-        return render_template_string(AUTH_TEMPLATE, error='❌ يجب ألا تقل كلمة المرور عن 4 أحرف', error_type='register')
+        return render_template_string(AUTH_TEMPLATE, error='❌ كلمة المرور 4 أحرف على الأقل', error_type='register')
     if not re.match(r'^[a-zA-Z0-9_]+$', username):
-        return render_template_string(AUTH_TEMPLATE, error='❌ اسم المستخدم يجب أن يحتوي على حروف وأرقام وشرطة سفلية فقط', error_type='register')
+        return render_template_string(AUTH_TEMPLATE, error='❌ اسم المستخدم: حروف وأرقام وـ فقط', error_type='register')
 
     users = load_users()
     if username in users:
-        return render_template_string(AUTH_TEMPLATE, error='❌ اسم المستخدم هذا مسجل مسبقاً بالنظام', error_type='register')
+        return render_template_string(AUTH_TEMPLATE, error='❌ اسم المستخدم محجوز مسبقاً', error_type='register')
 
-    # Assigning RIKO Free Trial Plan (7 days)
+    # 7 days free trial
     expiry_dt = (datetime.now() + timedelta(days=7)).isoformat()
     users[username] = {
         'password':     hashlib.sha256(password.encode()).hexdigest(),
@@ -5566,30 +4113,25 @@ def register_page():
         'created':      datetime.now().isoformat(),
         'expiry':       expiry_dt,
         'plan':         'free_trial',
-        'active':       False  # Requires @SHBH_S1 approval
+        'active':       False  # requires admin approval
     }
-    
-    # Save, create storage directory, and log activity safely
+    # persist immediately to DB / KV
     save_users(users)
     ensure_user_folder(username)
-    log_activity(username, 'auth.register', f'Telegram=@{tg_username} | Awaiting RIKO Approval')
-    
+    log_activity(username, 'auth.register', f'tg=@{tg_username} | awaiting approval')
     return render_template_string(AUTH_TEMPLATE,
-        error=f'✅ تم إرسال طلب تسجيلك بنجاح! يرجى انتظار موافقة RIKO للتفعيل الرسمي.\nيوزر حسابك: @{tg_username}',
+        error=f'✅ تم إرسال طلب التسجيل! انتظر موافقة الأدمن.\nيوزر تيليجرامك: @{tg_username}',
         error_type='register')
 
 @app.route('/logout')
 def logout():
     if 'username' in session:
-        log_activity(session['username'], 'auth.logout', 'User explicitly requested logout')
+        log_activity(session['username'], 'auth.logout', '')
         unregister_session(session['username'])
     session.clear()
     return redirect('/login')
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  21.  API: Profile, System & Activity — Powered by RIKO
-# ─────────────────────────────────────────────────────────────────────────────
-
+# ─── API: Profile & System ───
 @app.route('/api/profile')
 @login_required
 def get_profile():
@@ -5597,9 +4139,9 @@ def get_profile():
     p = get_user_path(u)
     size = 0
     if os.path.exists(p):
-        for r, d, f in os.walk(p):
+        for r,d,f in os.walk(p):
             for fl in f:
-                fp = os.path.join(r, fl)
+                fp = os.path.join(r,fl)
                 if os.path.exists(fp):
                     size += os.path.getsize(fp)
     users = load_users()
@@ -5608,10 +4150,9 @@ def get_profile():
         'username': u,
         'is_master': u == MASTER_USERNAME,
         'user_path': p,
-        'created': ud.get('created', '') if isinstance(ud, dict) else '',
-        'expiry': ud.get('expiry', '∞') if isinstance(ud, dict) else '∞',
-        'disk_usage_gb': size / (1024**3),
-        'system_brand': 'RIKO Core v2.0'
+        'created': ud.get('created','') if isinstance(ud,dict) else '',
+        'expiry': ud.get('expiry','∞') if isinstance(ud,dict) else '∞',
+        'disk_usage_gb': size / (1024**3)
     })
 
 @app.route('/api/system')
@@ -5622,13 +4163,7 @@ def system_info():
 @app.route('/api/sysinfo')
 @login_required
 def sysinfo():
-    return jsonify({
-        'info': f"Platform: {platform.platform()}\n"
-                f"CPU Usage: {psutil.cpu_percent()}%\n"
-                f"Memory Usage: {psutil.virtual_memory().percent}%\n"
-                f"Disk Usage: {psutil.disk_usage('/').percent}%\n"
-                f"Engine: RIKO Secure Core Architecture"
-    })
+    return jsonify({'info': f"Platform: {platform.platform()}\nCPU: {psutil.cpu_percent()}%\nMemory: {psutil.virtual_memory().percent}%\nDisk: {psutil.disk_usage('/').percent}%"})
 
 @app.route('/api/system/action', methods=['POST'])
 @login_required
@@ -5638,52 +4173,47 @@ def system_action_api():
         if a == 'clean':
             gc.collect()
         log_activity(session['username'], 'system.action', a or '')
-        return jsonify({'success': True, 'action': a, 'engine': 'RIKO'})
+        return jsonify({'success':True,'action':a})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+        return jsonify({'success':False,'error':str(e)})
 
+# ─── API: Activity ───
 @app.route('/api/activity')
 @login_required
 def activity_api():
-    data = load_json_file(ACTIVITY_FILE, {'events': []})
-    events = data.get('events', [])
+    data = load_json_file(ACTIVITY_FILE, {'events':[]})
+    events = data.get('events',[])
     if session.get('username') != MASTER_USERNAME:
         events = [e for e in events if e.get('username') == session.get('username')]
     return jsonify({'events': events[:200]})
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  22.  API: Advanced File Manager & Security Shield
-# ─────────────────────────────────────────────────────────────────────────────
-
+# ─── API: Files ───
 @app.route('/api/files/main-file')
 @login_required
 def get_main_file_api():
     u = session['username']
     if u == MASTER_USERNAME:
-        mf = MASTER_CONFIG.get('main_file', 'main.py')
+        mf = MASTER_CONFIG.get('main_file','main.py')
     else:
         users = load_users()
-        mf = users.get(u, {}).get('main_file', 'main.py') if isinstance(users.get(u), dict) else 'main.py'
-    return jsonify({'success': True, 'main_file': mf})
+        mf = users.get(u,{}).get('main_file','main.py') if isinstance(users.get(u),dict) else 'main.py'
+    return jsonify({'success':True,'main_file':mf})
 
 @app.route('/api/files')
 @login_required
 def list_files_api():
     p = request.args.get('path', get_user_path(session['username']))
     if not is_path_allowed(session['username'], p):
-        return jsonify({'success': False, 'error': 'forbidden'}), 403
+        return jsonify({'success':False,'error':'forbidden'}), 403
     files = []
     try:
-        for n in sorted(os.listdir(p), key=lambda x: (not os.path.isdir(os.path.join(p, x)), x.lower())):
-            fp = os.path.join(p, n)
-            files.append({
-                'name': n,
-                'is_dir': os.path.isdir(fp),
-                'size': f"{os.path.getsize(fp)//1024} KB" if os.path.isfile(fp) else ''
-            })
+        for n in sorted(os.listdir(p), key=lambda x:(not os.path.isdir(os.path.join(p,x)),x.lower())):
+            fp = os.path.join(p,n)
+            files.append({'name':n,'is_dir':os.path.isdir(fp),
+                          'size':f"{os.path.getsize(fp)//1024} KB" if os.path.isfile(fp) else ''})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-    return jsonify({'files': files})
+        return jsonify({'success':False,'error':str(e)}), 500
+    return jsonify({'files':files})
 
 @app.route('/api/files/upload', methods=['POST'])
 @login_required
@@ -5691,33 +4221,28 @@ def upload_file_api():
     f = request.files.get('file')
     p = request.form.get('path', get_user_path(session['username']))
     if not f:
-        return jsonify({'success': False, 'error': 'No file'}), 400
+        return jsonify({'success':False,'error':'No file'}), 400
     if not is_path_allowed(session['username'], p):
-        return jsonify({'success': False, 'error': 'Forbidden'}), 403
+        return jsonify({'success':False,'error':'Forbidden'}), 403
     try:
         filename = secure_filename(f.filename) if f.filename else 'uploaded_file'
-        if not filename: 
-            filename = 'uploaded_file'
+        if not filename: filename = 'uploaded_file'
         ext = os.path.splitext(filename)[1].lower().lstrip('.')
-        
-        # Block dangerous extensions via RIKO Firewall Rules
+        # Block dangerous extensions
         if ext in BLOCKED_EXTENSIONS:
             log_activity(session['username'], 'security.blocked_ext', filename)
-            return jsonify({'success': False, 'error': f'❌ نوع الملف .{ext} محظور برمجياً لأسباب أمنية حرجّة.'}), 403
-            
+            return jsonify({'success':False,'error':f'❌ نوع الملف .{ext} محظور لأسباب أمنية'}), 403
         os.makedirs(p, exist_ok=True)
         sp = os.path.join(p, filename)
         f.save(sp)
-        
-        # Deep dynamic content scan via RIKO Scanner Engine
+        # Deep content scan
         threats = scan_file_content(sp)
         if threats:
-            if os.path.exists(sp):
-                os.remove(sp)
+            os.remove(sp)
             threat_list = ' | '.join(threats[:5])
             log_activity(session['username'], 'security.malware_blocked', f'{filename}: {threat_list}')
 
-            # ── حفظ التنبيه في قاعدة بيانات لوحة التحكم ──
+            # ── حفظ التنبيه في قاعدة بيانات لوحة الأدمن ──
             alert_rec = save_security_alert(
                 username=session['username'],
                 filename=filename,
@@ -5725,7 +4250,7 @@ def upload_file_api():
                 ip=request.remote_addr
             )
 
-            # ── إرسال إشعار تليجرام فوري لمالك السيرفر المربوط بهوية RIKO ──
+            # ── إشعار الأدمن عبر تيليجرام ──
             try:
                 users_data = load_users()
                 ud = users_data.get(session['username'], {})
@@ -5734,96 +4259,94 @@ def upload_file_api():
                 if cfg.get('bot_linked') and cfg.get('telegram_token') and cfg.get('telegram_owner_id'):
                     threats_fmt = '\n'.join(f'   • {t}' for t in threats[:5])
                     alert_msg = (
-                        f"🚨 *جدار الحماية RIKO — تم رصد تهديد أمني خطير!*\n"
+                        f"🚨 *تحذير أمني — محاولة رفع ملف خطير!*\n"
                         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-                        f"👤 *المستعمل:* `{session['username']}`\n"
-                        f"📱 *حساب التليجرام:* `@{tg_user}`\n"
-                        f"📄 *الملف المرفوع:* `{filename}`\n"
-                        f"🌐 *عنوان الـ IP:* `{request.remote_addr}`\n"
-                        f"🕐 *توقيت الرصد:* `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`\n\n"
-                        f"🔍 *الشيفرات الخبيثة المكتشفة:*\n{threats_fmt}\n\n"
-                        f"⚠️ [RIKO SHIELD] تم تدمير الملف تلقائياً وحذفه نهائياً من القرص لحماية الخادم الرئيسي."
+                        f"👤 *اليوزر:* `{session['username']}`\n"
+                        f"📱 *تيليجرام:* `@{tg_user}`\n"
+                        f"📄 *الملف:* `{filename}`\n"
+                        f"🌐 *IP:* `{request.remote_addr}`\n"
+                        f"🕐 *الوقت:* `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`\n\n"
+                        f"🔍 *التهديدات المكتشفة:*\n{threats_fmt}\n\n"
+                        f"⚠️ تم حذف الملف تلقائياً — راجع قسم الأمن في لوحة التحكم."
                     )
                     requests.post(
                         f"https://api.telegram.org/bot{cfg['telegram_token']}/sendMessage",
-                        json={'chat_id': cfg['telegram_owner_id'], 'text': alert_msg, 'parse_mode': 'Markdown'},
+                        json={'chat_id': cfg['telegram_owner_id'], 'text': alert_msg,
+                              'parse_mode': 'Markdown'},
                         timeout=8
                     )
             except Exception:
                 pass
             return jsonify({'success': False, 'error': 'SECURITY_ALERT|' + threat_list}), 403
-            
         log_activity(session['username'], 'file.upload', filename)
-        return jsonify({'success': True, 'filename': filename})
+        return jsonify({'success':True,'filename':filename})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success':False,'error':str(e)}), 500
 
 @app.route('/api/files/folder', methods=['POST'])
 @login_required
 def create_folder_api():
     d = request.json or {}
-    if not is_path_allowed(session['username'], d.get('path', '')):
-        return jsonify({'success': False}), 403
+    if not is_path_allowed(session['username'], d.get('path','')):
+        return jsonify({'success':False}), 403
     os.makedirs(d['path'], exist_ok=True)
     log_activity(session['username'], 'file.mkdir', d['path'])
-    return jsonify({'success': True})
+    return jsonify({'success':True})
 
 @app.route('/api/files/create', methods=['POST'])
 @login_required
 def create_file_api():
     d = request.json or {}
-    if not is_path_allowed(session['username'], d.get('path', '')):
-        return jsonify({'success': False}), 403
+    if not is_path_allowed(session['username'], d.get('path','')):
+        return jsonify({'success':False}), 403
     with open(d['path'], 'w', encoding='utf-8') as f:
-        f.write(d.get('content', ''))
+        f.write(d.get('content',''))
     log_activity(session['username'], 'file.create', d['path'])
-    return jsonify({'success': True})
+    return jsonify({'success':True})
 
 @app.route('/api/files/delete', methods=['POST'])
 @login_required
 def delete_file_api():
     d = request.json or {}
-    p = d.get('path', '')
+    p = d.get('path','')
     if not is_path_allowed(session['username'], p):
-        return jsonify({'success': False}), 403
-    if os.path.isdir(p): 
-        shutil.rmtree(p, ignore_errors=True)
-    elif os.path.isfile(p): 
-        os.remove(p)
+        return jsonify({'success':False}), 403
+    if os.path.isdir(p): shutil.rmtree(p, ignore_errors=True)
+    elif os.path.isfile(p): os.remove(p)
     log_activity(session['username'], 'file.delete', p)
-    return jsonify({'success': True})
+    return jsonify({'success':True})
 
 @app.route('/api/files/content')
 @login_required
 def get_file_content():
     p = request.args.get('path')
     if not p or not is_path_allowed(session['username'], p):
-        return jsonify({'success': False}), 403
+        return jsonify({'success':False}), 403
     try:
-        with open(p, 'r', encoding='utf-8', errors='ignore') as f:
-            return jsonify({'content': f.read()})
+        with open(p,'r',encoding='utf-8',errors='ignore') as f:
+            return jsonify({'content':f.read()})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+        return jsonify({'success':False,'error':str(e)})
 
 @app.route('/api/files/save', methods=['POST'])
 @login_required
 def save_file_api():
     d = request.json or {}
-    if not is_path_allowed(session['username'], d.get('path', '')):
-        return jsonify({'success': False}), 403
-    with open(d['path'], 'w', encoding='utf-8') as f:
-        f.write(d.get('content', ''))
+    if not is_path_allowed(session['username'], d.get('path','')):
+        return jsonify({'success':False}), 403
+    with open(d['path'],'w',encoding='utf-8') as f:
+        f.write(d.get('content',''))
     log_activity(session['username'], 'file.write', d['path'])
-    return jsonify({'success': True})
+    return jsonify({'success':True})
 
 @app.route('/api/files/set-main', methods=['POST'])
 @login_required
 def set_main_file_api():
     d = request.json or {}
-    filename = d.get('filename', '')
+    filename = d.get('filename','')
     username = session['username']
     if not filename:
-        return jsonify({'success': False, 'error': 'No filename'})
+        return jsonify({'success':False,'error':'No filename'})
     users = load_users()
     if username == MASTER_USERNAME:
         MASTER_CONFIG['main_file'] = filename
@@ -5832,72 +4355,52 @@ def set_main_file_api():
         users[username]['main_file'] = filename
         save_users(users)
     log_activity(username, 'file.set-main', filename)
-    return jsonify({'success': True, 'main_file': filename})
+    return jsonify({'success':True,'main_file':filename})
 
 @app.route('/api/files/extract', methods=['POST'])
 @login_required
 def extract_api():
     d = request.json or {}
-    archive = d.get('archive', '')
-    dest    = d.get('dest', '')
+    archive = d.get('archive','')
+    dest    = d.get('dest','')
     if not archive or not is_path_allowed(session['username'], archive):
-        return jsonify({'success': False, 'error': 'Forbidden or invalid path'}), 403
+        return jsonify({'success':False,'error':'Forbidden or invalid path'}), 403
     if not dest:
-        dest = re.sub(r'\.(zip|tar\.gz|tar|gz|rar)$', '', archive, flags=re.I)
+        dest = re.sub(r'\.(zip|tar\.gz|tar|gz|rar)$','',archive,flags=re.I)
     result = safe_extract(archive, dest, session['username'])
     return jsonify(result)
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  23.  API: Run Files & Dynamic Process Controller — Powered by RIKO
-# ─────────────────────────────────────────────────────────────────────────────
-
+# ─── API: Run files ───
 @app.route('/api/file/run', methods=['POST'])
 @login_required
 def run_file_api():
     d = request.json or {}
     filepath = os.path.join(d.get('path',''), d.get('filename',''))
     if not os.path.exists(filepath):
-        return jsonify({'success': False, 'error': 'المستند أو الملف غير موجود بالنظام'})
+        return jsonify({'success':False,'error':'File not found'})
     if not is_path_allowed(session['username'], d.get('path','')):
-        return jsonify({'success': False, 'error': 'غير مسموح لك بالوصول لهذا المسار'})
-        
-    # Handling ZIP Files execution safely
+        return jsonify({'success':False,'error':'Forbidden'})
     if d.get('filename','').lower().endswith('.zip'):
         extract_dir = os.path.join(d['path'], d['filename'].replace('.zip',''))
         os.makedirs(extract_dir, exist_ok=True)
         main = extract_and_find_main(filepath, extract_dir)
-        if main: 
-            filepath = main
-        else: 
-            return jsonify({'success': False, 'error': 'لم يتم العثور على ملف التشغيل الرئيسي داخل الـ ZIP'})
-            
+        if main: filepath = main
+        else: return jsonify({'success':False,'error':'Main file not found in ZIP'})
     installed = auto_install_dependencies(filepath)
     cmd = get_run_command(filepath)
-    
     try:
         kwargs = dict(shell=True, cwd=os.path.dirname(filepath),
                       stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                       stderr=subprocess.STDOUT, text=True, bufsize=1)
-        if hasattr(os, 'setsid'): 
-            kwargs['preexec_fn'] = os.setsid
+        if hasattr(os,'setsid'): kwargs['preexec_fn']=os.setsid
         p = subprocess.Popen(cmd, **kwargs)
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
-        
+        return jsonify({'success':False,'error':str(e)})
     pid = f"{session['username']}_{d.get('filename','f')}_{int(time.time())}"
-    file_processes[pid] = {
-        'process': p,
-        'filename': d.get('filename',''),
-        'username': session['username'],
-        'output': [],
-        'engine': 'RIKO Core Runtime'
-    }
-    
-    # Asynchronous output thread handling
-    threading.Thread(target=read_process_output, args=(pid, p), kwargs={'store': file_processes}, daemon=True).start()
-    log_activity(session['username'], 'file.run', f"{d.get('filename','')} ({pid})")
-    
-    return jsonify({'success': True, 'process_id': pid, 'installed_result': installed, 'status': 'Running under RIKO Isolation'})
+    file_processes[pid] = {'process':p,'filename':d.get('filename',''),'username':session['username'],'output':[]}
+    threading.Thread(target=read_process_output,args=(pid,p),kwargs={'store':file_processes},daemon=True).start()
+    log_activity(session['username'],'file.run',f"{d.get('filename','')} ({pid})")
+    return jsonify({'success':True,'process_id':pid,'installed_result':installed})
 
 @app.route('/api/file/stop', methods=['POST'])
 @login_required
@@ -5905,32 +4408,29 @@ def stop_file_api():
     pid = (request.json or {}).get('process_id')
     if pid in file_processes:
         try:
-            if hasattr(os, 'killpg'): 
-                os.killpg(os.getpgid(file_processes[pid]['process'].pid), signal.SIGKILL)
-            else: 
-                file_processes[pid]['process'].kill()
-        except Exception: 
-            pass
-        log_activity(session['username'], 'file.stop', pid)
+            if hasattr(os,'killpg'): os.killpg(os.getpgid(file_processes[pid]['process'].pid), signal.SIGKILL)
+            else: file_processes[pid]['process'].kill()
+        except Exception: pass
+        log_activity(session['username'],'file.stop',pid)
         del file_processes[pid]
-    return jsonify({'success': True, 'message': 'تم إيقاف العملية بنجاح'})
+    return jsonify({'success':True})
 
 @app.route('/api/file/output/<pid>')
 @login_required
 def get_file_output_api(pid):
     if pid in file_processes:
         info = file_processes[pid]
-        out = list(info.get('output', []))
+        out = list(info.get('output',[]))
         info['output'].clear()
-        return jsonify({'success': True, 'output': out, 'is_running': info['process'].poll() is None})
-    return jsonify({'success': False, 'output': [], 'is_running': False})
+        return jsonify({'success':True,'output':out,'is_running':info['process'].poll() is None})
+    return jsonify({'success':False,'output':[],'is_running':False})
 
 @app.route('/api/file/output/<pid>/clear', methods=['POST'])
 @login_required
 def clear_file_output(pid):
     if pid in file_processes:
         file_processes[pid]['output'].clear()
-    return jsonify({'success': True})
+    return jsonify({'success':True})
 
 @app.route('/api/file/input', methods=['POST'])
 @login_required
@@ -5939,11 +4439,11 @@ def send_file_input_api():
     pid = d.get('process_id')
     if pid in file_processes:
         try:
-            file_processes[pid]['process'].stdin.write(d.get('input', '') + '\n')
+            file_processes[pid]['process'].stdin.write(d.get('input','')+'\n')
             file_processes[pid]['process'].stdin.flush()
         except Exception as e:
-            return jsonify({'success': False, 'error': str(e)})
-    return jsonify({'success': True})
+            return jsonify({'success':False,'error':str(e)})
+    return jsonify({'success':True})
 
 @app.route('/api/file/running')
 @login_required
@@ -5951,83 +4451,64 @@ def get_running_files_api():
     user = session['username']
     running, dead = [], []
     for pid, info in file_processes.items():
-        if info['username'] == user or user == MASTER_USERNAME:
+        if info['username']==user or user==MASTER_USERNAME:
             if info['process'].poll() is None:
-                running.append({'process_id': pid, 'filename': info['filename'], 'username': info['username']})
+                running.append({'process_id':pid,'filename':info['filename'],'username':info['username']})
             else:
                 dead.append(pid)
-    for d in dead: 
-        file_processes.pop(d, None)
-    return jsonify({'success': True, 'running': running})
+    for d in dead: file_processes.pop(d,None)
+    return jsonify({'success':True,'running':running})
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  24.  API: Secured Shell Terminal (RIKO Advanced Exec)
-# ─────────────────────────────────────────────────────────────────────────────
-
+# ─── API: Exec ───
 @app.route('/api/exec', methods=['POST'])
 @login_required
 def execute_command_api():
     d = request.json or {}
-    cmd = d.get('command', '').strip()
+    cmd = d.get('command','').strip()
     cwd = d.get('cwd', get_user_path(session['username']))
     if not cmd:
-        return jsonify({'output': '', 'success': True})
+        return jsonify({'output':'','success':True})
 
-    # ── Smart Command Rewriting (Environment Normalization) ──
+    # ── Smart command rewriting ──
+    # normalize python/pip to python3/pip3
+    cmd_lower = cmd.lower().strip()
     if re.match(r'^python\s+', cmd):
         cmd = 'python3 ' + cmd[7:]
     elif cmd == 'python':
         cmd = 'python3 --version'
-        
     if re.match(r'^pip\s+', cmd):
         cmd = 'pip3 ' + cmd[4:]
     elif cmd == 'pip':
         cmd = 'pip3 --version'
 
-    # ── Advanced Blocked Commands List (RIKO Secure Shield) ──
-    BLOCKED_CMDS = [
-        r'rm\s+-rf\s+/', r'mkfs', r':\(\)\{\s*:\|\s*:&\s*\}\s*;:', r'dd\s+if=/dev/zero',
-        r'wget.*\|\s*bash', r'curl.*\|\s*bash', r'>\s*/etc/passwd', r'chmod\s+777\s+/',
-        r'chown', r'shutdown', r'reboot', r'pkill', r'killall'
-    ]
-    
+    # Block dangerous terminal commands
+    BLOCKED_CMDS = ['rm -rf /', 'mkfs', ':(){:|:&};:', 'dd if=/dev/zero', 'wget.*|.*bash',
+                    'curl.*|.*bash', '> /etc/passwd', 'chmod 777 /']
     for bc in BLOCKED_CMDS:
         if re.search(bc, cmd, re.IGNORECASE):
             log_activity(session['username'], 'security.blocked_cmd', cmd[:100])
-            return jsonify({
-                'output': '🚨 [RIKO SHIELD] عذراً، هذا الأمر محظور أمنياً لحماية بيئة الاستضافة المشتركة.', 
-                'success': False
-            })
+            return jsonify({'output':'🚨 أمر محظور لأسباب أمنية', 'success': False})
 
     log_activity(session['username'], 'exec', cmd[:120])
     try:
         env = os.environ.copy()
         env['PYTHONUNBUFFERED'] = '1'
-        
         r = subprocess.run(
             cmd, shell=True, cwd=cwd,
             capture_output=True, text=True,
             timeout=120, env=env
         )
         output = r.stdout + r.stderr
-        
+        # add color hints for common outputs
         if not output.strip():
-            output = '✅ [RIKO] تم تنفيذ الأمر البرمجي بنجاح (لا يوجد مخرجات لعرضها).'
-            
+            output = '✅ Command executed (no output)'
         return jsonify({'output': output, 'success': r.returncode == 0, 'code': r.returncode})
-        
     except subprocess.TimeoutExpired:
-        return jsonify({
-            'output': '⏱️ [RIKO TIMEOUT] انتهت المهلة المحددة (120 ثانية) — قد تكون العملية البرمجية لا تزال تعمل في الخلفية.', 
-            'success': False
-        })
+        return jsonify({'output':'⏱ Timeout (120s) — قد تكون العملية لا تزال تعمل في الخلفية', 'success': False})
     except Exception as e:
-        return jsonify({'output': f'❌ خطأ في النظام الداخلي: {str(e)}', 'success': False})
+        return jsonify({'output': f'❌ Error: {str(e)}', 'success': False})
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  25.  API: Node.js Project Controller — Powered by RIKO
-# ─────────────────────────────────────────────────────────────────────────────
-
+# ─── API: Node.js ───
 @app.route('/api/nodejs/start', methods=['POST'])
 @login_required
 def nodejs_start_api():
@@ -6036,12 +4517,10 @@ def nodejs_start_api():
     port      = d.get('port')
     main_file = d.get('main_file','').strip() or None
     deps_file = d.get('deps_file','').strip() or None
-    
     if not path:
-        return jsonify({'success': False, 'error': 'لم يتم تحديد مسار المشروع'})
+        return jsonify({'success':False,'error':'No path'})
     if not is_path_allowed(session['username'], path):
-        return jsonify({'success': False, 'error': 'غير مسموح لك بالوصول لهذا المسار أمنياً'})
-        
+        return jsonify({'success':False,'error':'Forbidden'})
     result = start_nodejs_project(path, session['username'], port,
                                   main_file=main_file, deps_file=deps_file)
     return jsonify(result)
@@ -6054,26 +4533,20 @@ def nodejs_info_api():
     path      = d.get('path','').strip()
     main_file = d.get('main_file','').strip() or None
     deps_file = d.get('deps_file','').strip() or None
-    
     if not path or not is_path_allowed(session['username'], path):
-        return jsonify({'success': False, 'error': 'المسار محظور أو غير موجود'})
-        
+        return jsonify({'success':False,'error':'Forbidden or no path'})
     info = get_nodejs_info(path, main_file=main_file, deps_file=deps_file)
-    
-    # scan for valid javascript source files inside user directory
+    # also list .js files in project
     js_files = []
     try:
         for root, dirs, files in os.walk(path):
-            dirs[:] = [dd for dd in dirs if dd not in ['node_modules', '.git', '__pycache__']]
+            dirs[:] = [dd for dd in dirs if dd not in ['node_modules','.git','__pycache__']]
             for fn in files:
                 if fn.endswith('.js') or fn.endswith('.mjs') or fn.endswith('.cjs'):
-                    js_files.append(os.path.relpath(os.path.join(root, fn), path))
-    except Exception: 
-        pass
-        
+                    js_files.append(os.path.relpath(os.path.join(root,fn), path))
+    except Exception: pass
     info['js_files']  = js_files[:50]
     info['success']   = True
-    info['engine']    = 'RIKO Node Runtime v2.0'
     return jsonify(info)
 
 @app.route('/api/nodejs/stop', methods=['POST'])
@@ -6083,15 +4556,12 @@ def nodejs_stop_api():
     if pid in nodejs_processes:
         try:
             p = nodejs_processes[pid]['process']
-            if hasattr(os, 'killpg'): 
-                os.killpg(os.getpgid(p.pid), signal.SIGKILL)
-            else: 
-                p.kill()
-        except Exception: 
-            pass
-        log_activity(session['username'], 'nodejs.stop', pid)
+            if hasattr(os,'killpg'): os.killpg(os.getpgid(p.pid), signal.SIGKILL)
+            else: p.kill()
+        except Exception: pass
+        log_activity(session['username'],'nodejs.stop',pid)
         del nodejs_processes[pid]
-    return jsonify({'success': True, 'message': 'تم إيقاف عملية خادم Node.js بنجاح'})
+    return jsonify({'success':True})
 
 @app.route('/api/nodejs/list')
 @login_required
@@ -6100,46 +4570,39 @@ def nodejs_list_api():
     result = []
     dead = []
     for pid, info in nodejs_processes.items():
-        if info['username'] == user or user == MASTER_USERNAME:
+        if info['username']==user or user==MASTER_USERNAME:
             is_running = info['process'].poll() is None
             if not is_running and user != MASTER_USERNAME:
-                dead.append(pid)
-                continue
+                dead.append(pid); continue
             result.append({
-                'pid': pid, 'command': info.get('command', ''), 'port': info.get('port'),
-                'project': info.get('project', ''), 'started': info.get('started', ''),
-                'main_file': info.get('main_file', ''), 'deps_file': info.get('deps_file', ''),
-                'running': is_running, 'brand': 'RIKO Host Engine'
+                'pid':pid,'command':info.get('command',''),'port':info.get('port'),
+                'project':info.get('project',''),'started':info.get('started',''),
+                'main_file':info.get('main_file',''),'deps_file':info.get('deps_file',''),
+                'running':is_running
             })
-    for d in dead: 
-        nodejs_processes.pop(d, None)
-    return jsonify({'processes': result})
+    for d in dead: nodejs_processes.pop(d,None)
+    return jsonify({'processes':result})
 
 @app.route('/api/nodejs/logs/<pid>')
 @login_required
 def nodejs_logs_api(pid):
     if pid in nodejs_processes:
-        return jsonify({'output': list(nodejs_processes[pid].get('output', []))})
-    return jsonify({'output': []})
+        return jsonify({'output':list(nodejs_processes[pid].get('output',[]))})
+    return jsonify({'output':[]})
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  26.  API: PHP Embedded Server Controller — Powered by RIKO
-# ─────────────────────────────────────────────────────────────────────────────
-
+# ─── API: PHP ───
 @app.route('/api/php/start', methods=['POST'])
 @login_required
 def php_start_api():
     d = request.json or {}
-    path      = d.get('path', '').strip()
+    path      = d.get('path','').strip()
     port      = d.get('port')
-    main_file = d.get('main_file', '').strip() or None
-    deps_file = d.get('deps_file', '').strip() or None
-    
+    main_file = d.get('main_file','').strip() or None
+    deps_file = d.get('deps_file','').strip() or None
     if not path:
-        return jsonify({'success': False, 'error': 'لم يتم تزويد مسار الـ PHP'})
+        return jsonify({'success':False,'error':'No path'})
     if not is_path_allowed(session['username'], path):
-        return jsonify({'success': False, 'error': 'المسار المطلوب محظور أمنياً'})
-        
+        return jsonify({'success':False,'error':'Forbidden'})
     result = start_php_server(path, session['username'], port,
                               main_file=main_file, deps_file=deps_file)
     return jsonify(result)
@@ -6149,29 +4612,23 @@ def php_start_api():
 def php_info_api():
     """Return install & run commands without starting."""
     d = request.json or {}
-    path      = d.get('path', '').strip()
-    main_file = d.get('main_file', '').strip() or None
-    deps_file = d.get('deps_file', '').strip() or None
-    
+    path      = d.get('path','').strip()
+    main_file = d.get('main_file','').strip() or None
+    deps_file = d.get('deps_file','').strip() or None
     if not path or not is_path_allowed(session['username'], path):
-        return jsonify({'success': False, 'error': 'المسار محظور أو غير متوفر حالياً'})
-        
+        return jsonify({'success':False,'error':'Forbidden or no path'})
     info = get_php_info(path, main_file=main_file, deps_file=deps_file)
-    
-    # search for internal php files inside user space
+    # list php files
     php_files = []
     try:
         for root, dirs, files in os.walk(path):
-            dirs[:] = [dd for dd in dirs if dd not in ['vendor', '.git', 'node_modules']]
+            dirs[:] = [dd for dd in dirs if dd not in ['vendor','.git','node_modules']]
             for fn in files:
                 if fn.endswith('.php'):
-                    php_files.append(os.path.relpath(os.path.join(root, fn), path))
-    except Exception: 
-        pass
-        
+                    php_files.append(os.path.relpath(os.path.join(root,fn), path))
+    except Exception: pass
     info['php_files'] = php_files[:50]
     info['success']   = True
-    info['engine']    = 'RIKO PHP Engine Environment'
     return jsonify(info)
 
 @app.route('/api/php/stop', methods=['POST'])
@@ -6181,15 +4638,12 @@ def php_stop_api():
     if pid in _php_servers:
         try:
             p = _php_servers[pid]['process']
-            if hasattr(os, 'killpg'): 
-                os.killpg(os.getpgid(p.pid), signal.SIGKILL)
-            else: 
-                p.kill()
-        except Exception: 
-            pass
-        log_activity(session['username'], 'php.stop', pid)
+            if hasattr(os,'killpg'): os.killpg(os.getpgid(p.pid), signal.SIGKILL)
+            else: p.kill()
+        except Exception: pass
+        log_activity(session['username'],'php.stop',pid)
         del _php_servers[pid]
-    return jsonify({'success': True, 'message': 'تم إغلاق خادم PHP وسحب المنفذ بأمان'})
+    return jsonify({'success':True})
 
 @app.route('/api/php/list')
 @login_required
@@ -6197,147 +4651,94 @@ def php_list_api():
     user = session['username']
     result = []
     for pid, info in _php_servers.items():
-        if info['username'] == user or user == MASTER_USERNAME:
+        if info['username']==user or user==MASTER_USERNAME:
             result.append({
-                'pid': pid, 'port': info.get('port'), 'path': info.get('path', ''),
-                'started': info.get('started', ''), 'running': info['process'].poll() is None,
-                'system': 'RIKO Infrastructure Shared Core'
+                'pid':pid,'port':info.get('port'),'path':info.get('path',''),
+                'started':info.get('started',''),'running':info['process'].poll() is None
             })
-    return jsonify({'servers': result})
+    return jsonify({'servers':result})
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  27.  API: System Processes Management — Powered by RIKO
-# ─────────────────────────────────────────────────────────────────────────────
-
+# ─── API: Processes ───
 @app.route('/api/process/start', methods=['POST'])
 @login_required
 def start_process_api():
     d = request.json or {}
-    cmd = d.get('command', '').strip()
-    name = d.get('name', '').strip()
-    
-    if not cmd or not name:
-        return jsonify({'success': False, 'error': 'اسم العملية والأمر البرمجي مطلوبان'})
-        
-    # Security filter against malicious commands injection inside RIKO runtime
-    BLOCKED_PATTERNS = [r'rm\s+-rf', r'mkfs', r'chmod\s+777', r'chown']
-    for pattern in BLOCKED_PATTERNS:
-        if re.search(pattern, cmd, re.IGNORECASE):
-            log_activity(session['username'], 'security.process_blocked', f"Name: {name} | Cmd: {cmd}")
-            return jsonify({'success': False, 'error': '🚨 الأمر البرمجي يحتوي على تعليمات محظورة أمنياً'})
-
     def run():
         kwargs = dict(shell=True, cwd=d.get('cwd', BASE_PATH))
-        if hasattr(os, 'setsid'): 
-            kwargs['preexec_fn'] = os.setsid
-        p = subprocess.Popen(cmd, **kwargs)
-        running_processes[name] = {
-            'process': p,
-            'owner': session.get('username'),
-            'command': cmd,
-            'engine': 'RIKO Process Monitor'
-        }
+        if hasattr(os,'setsid'): kwargs['preexec_fn']=os.setsid
+        p = subprocess.Popen(d['command'], **kwargs)
+        running_processes[d['name']] = {'process':p,'owner':session.get('username'),'command':d['command']}
         p.wait()
-        
-    threading.Thread(target=run, daemon=True).start()
-    log_activity(session['username'], 'process.start', name)
-    return jsonify({'success': True, 'message': 'تم إطلاق العملية في بيئة معزولة بنجاح'})
+    threading.Thread(target=run,daemon=True).start()
+    log_activity(session['username'],'process.start',d.get('name',''))
+    return jsonify({'success':True})
 
 @app.route('/api/process/stop', methods=['POST'])
 @login_required
 def stop_process_api():
-    n = (request.json or {}).get('name', '')
+    n = (request.json or {}).get('name','')
     if n in running_processes:
         try:
-            if hasattr(os, 'killpg'): 
-                os.killpg(os.getpgid(running_processes[n]['process'].pid), signal.SIGKILL)
-            else: 
-                running_processes[n]['process'].kill()
-        except Exception: 
-            pass
+            if hasattr(os,'killpg'): os.killpg(os.getpgid(running_processes[n]['process'].pid), signal.SIGKILL)
+            else: running_processes[n]['process'].kill()
+        except Exception: pass
         del running_processes[n]
-    log_activity(session['username'], 'process.stop', n)
-    return jsonify({'success': True, 'message': 'تم إنهاء العملية وسحب الصلاحيات'})
+    log_activity(session['username'],'process.stop',n)
+    return jsonify({'success':True})
 
 @app.route('/api/process/list')
 @login_required
 def list_processes_api():
     procs = {}
-    user = session.get('username')
-    for n, i in running_processes.items():
-        # User isolation: users only see their own active background processes
-        if user == MASTER_USERNAME or i.get('owner') == user:
-            procs[n] = {
-                'status': 'running' if i['process'].poll() is None else 'stopped',
-                'command': i['command']
-            }
+    for n,i in running_processes.items():
+        procs[n]={'status':'running' if i['process'].poll() is None else 'stopped','command':i['command']}
     return jsonify(procs)
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  28.  API: Network & Port Allocation Engine — Powered by RIKO
-# ─────────────────────────────────────────────────────────────────────────────
-
+# ─── API: Network ───
 @app.route('/api/network/scan', methods=['POST'])
 @login_required
 def scan_ports_api():
     d = request.json or {}
     out = []
-    host = d.get('host', '127.0.0.1')
-    for p in d.get('ports', []):
+    for p in d.get('ports',[]):
         try:
             s = socket.socket()
             s.settimeout(1)
-            r = s.connect_ex((host, int(p)))
-            out.append({'port': p, 'open': r == 0})
+            r = s.connect_ex((d.get('host','127.0.0.1'), int(p)))
+            out.append({'port':p,'open':r==0})
             s.close()
         except Exception:
-            out.append({'port': p, 'open': False})
-    return jsonify({'results': out, 'host': host, 'scanner': 'RIKO Network Radar'})
+            out.append({'port':p,'open':False})
+    return jsonify({'results':out})
 
 @app.route('/api/ports/list')
 @login_required
 def list_ports_api():
-    return jsonify({'ports': load_ports()})
+    return jsonify({'ports':load_ports()})
 
 @app.route('/api/ports/add', methods=['POST'])
 @master_required
 def add_port_api():
     d = request.json or {}
-    try: 
-        port = int(d.get('port', 0))
-    except Exception: 
-        return jsonify({'success': False, 'error': 'منفذ (Port) غير صالح'})
-        
-    if port <= 0 or port > 65535: 
-        return jsonify({'success': False, 'error': 'قيمة المنفذ يجب أن تكون بين 1 و 65535'})
-        
+    try: port = int(d.get('port',0))
+    except Exception: return jsonify({'success':False,'error':'Invalid port'})
+    if port<=0 or port>65535: return jsonify({'success':False,'error':'Invalid range'})
     ports = load_ports()
-    if any(p.get('port') == port for p in ports): 
-        return jsonify({'success': False, 'error': 'هذا المنفذ محجوز مسبقاً بالنظام'})
-        
-    ports.append({
-        'port': port,
-        'note': d.get('note', ''),
-        'status': 'idle',
-        'created': datetime.now().isoformat(),
-        'allocated_by': 'RIKO Master Engine'
-    })
+    if any(p.get('port')==port for p in ports): return jsonify({'success':False,'error':'Port exists'})
+    ports.append({'port':port,'note':d.get('note',''),'status':'idle','created':datetime.now().isoformat()})
     save_ports(ports)
-    log_activity(session['username'], 'port.add', str(port))
-    return jsonify({'success': True, 'message': 'تم فتح وتخصيص المنفذ الجديد بنجاح'})
+    log_activity(session['username'],'port.add',str(port))
+    return jsonify({'success':True})
 
 @app.route('/api/ports/delete', methods=['POST'])
 @master_required
 def del_port_api():
     port = (request.json or {}).get('port')
-    save_ports([p for p in load_ports() if p.get('port') != port])
-    log_activity(session['username'], 'port.delete', str(port))
-    return jsonify({'success': True, 'message': 'تم حذف وتطهير حجز المنفذ من الخادم'})
+    save_ports([p for p in load_ports() if p.get('port')!=port])
+    log_activity(session['username'],'port.delete',str(port))
+    return jsonify({'success':True})
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  29.  API: Master Administrative Management — Powered by RIKO
-# ─────────────────────────────────────────────────────────────────────────────
-
+# ─── API: Users (master) ───
 @app.route('/api/users/list')
 @master_required
 def list_panel_users_api():
@@ -6359,7 +4760,7 @@ def list_panel_users_api():
             'created':         ud.get('created', ''),
             'plan':            ud.get('plan', 'free_trial'),
         })
-    return jsonify({'users': result, 'system_owner_link': 'https://t.me/SHBH_S1'})
+    return jsonify({'users': result})
 
 @app.route('/api/users/pending')
 @master_required
@@ -6370,39 +4771,35 @@ def pending_users_api():
         'tg_username': users[u].get('tg_username', '') if isinstance(users[u], dict) else '',
         'created':     users[u].get('created', '') if isinstance(users[u], dict) else ''
     } for u in users if isinstance(users[u], dict) and not users[u].get('active', True)]
-    return jsonify({'users': pending, 'count': len(pending)})
+    return jsonify({'users': pending})
 
 @app.route('/api/users/approve', methods=['POST'])
 @master_required
 def approve_user_api():
-    username = (request.json or {}).get('username', '')
+    username = (request.json or {}).get('username','')
     users = load_users()
     if username in users:
         users[username]['active'] = True
         save_users(users)
-        log_activity(session['username'], 'user.approve', username)
-        return jsonify({'success': True, 'message': f'تم تفعيل الموافقة على حساب {username} بنجاح'})
-    return jsonify({'success': False, 'error': 'اسم المستخدم المطلوب غير مدرج في قاعدة بيانات RIKO'})
+        log_activity(session['username'],'user.approve',username)
+        return jsonify({'success':True})
+    return jsonify({'success':False,'error':'User not found'})
 
 @app.route('/api/users/add', methods=['POST'])
 @master_required
 def add_panel_user_api():
     d = request.json or {}
-    uname = d.get('username', '').strip()
-    if not uname: 
-        return jsonify({'success': False, 'error': 'اسم المستخدم حقل إجباري'})
+    uname = d.get('username','').strip()
+    if not uname: return jsonify({'success':False,'error':'Username required'})
     users = load_users()
-    if uname in users: 
-        return jsonify({'success': False, 'error': 'اسم المستخدم مسجل مسبقاً باللوحة'})
-        
+    if uname in users: return jsonify({'success':False,'error':'Username exists'})
     plan = d.get('plan', 'free_trial')
-    plan_days = {'free_trial': 7, 'paid_20': 20, 'paid_30': 30}
+    plan_days = {'free_trial':7, 'paid_20':20, 'paid_30':30}
     expiry_days = plan_days.get(plan, int(d.get('expiry_days', 7) or 7))
     expiry_days = max(1, expiry_days)
-    
     users[uname] = {
-        'password':     hashlib.sha256(d.get('password', '').encode()).hexdigest(),
-        'tg_username':  d.get('tg_username', '').lstrip('@'),
+        'password':     hashlib.sha256(d.get('password','').encode()).hexdigest(),
+        'tg_username':  d.get('tg_username','').lstrip('@'),
         'max_sessions': int(d.get('max_sessions', 1)),
         'max_servers':  int(d.get('max_servers', 1)),
         'main_file':    d.get('main_file', 'main.py'),
@@ -6414,54 +4811,44 @@ def add_panel_user_api():
     save_users(users)
     ensure_user_folder(uname)
     log_activity(session['username'], 'user.add', f'{uname} plan={plan}')
-    return jsonify({'success': True, 'message': f'تم إنشاء وتثبيت حساب {uname} بنجاح'})
+    return jsonify({'success':True})
 
 @app.route('/api/users/update', methods=['POST'])
 @master_required
 def update_panel_user_api():
     d = request.json or {}
     users = load_users()
-    uname = d.get('username', '')
-    if uname not in users: 
-        return jsonify({'success': False, 'error': 'هذا الحساب غير متوفر حالياً لتحديث بياناته'})
-        
-    if d.get('password'): 
-        users[uname]['password'] = hashlib.sha256(d['password'].encode()).hexdigest()
-    if d.get('max_servers') is not None: 
-        users[uname]['max_servers'] = int(d['max_servers'])
-    if d.get('main_file') is not None: 
-        users[uname]['main_file'] = d['main_file']
-    if d.get('max_sessions') is not None: 
-        users[uname]['max_sessions'] = int(d['max_sessions'])
+    uname = d.get('username','')
+    if uname not in users: return jsonify({'success':False,'error':'User not found'})
+    if d.get('password'): users[uname]['password'] = hashlib.sha256(d['password'].encode()).hexdigest()
+    if d.get('max_servers') is not None: users[uname]['max_servers'] = int(d['max_servers'])
+    if d.get('main_file') is not None: users[uname]['main_file'] = d['main_file']
+    if d.get('max_sessions') is not None: users[uname]['max_sessions'] = int(d['max_sessions'])
     if d.get('expiry_days') is not None:
-        expiry_days = max(1, int(d['expiry_days'] or 30))
+        expiry_days = max(30, int(d['expiry_days'] or 30))
         users[uname]['expiry'] = (datetime.now() + timedelta(days=expiry_days)).isoformat()
-        
     save_users(users)
-    log_activity(session['username'], 'user.update', uname)
-    return jsonify({'success': True, 'message': 'تم حفظ التعديلات الإدارية على الحساب والمزامنة فورياً'})
+    log_activity(session['username'],'user.update',uname)
+    return jsonify({'success':True})
 
 @app.route('/api/users/delete', methods=['POST'])
 @master_required
 def delete_panel_user_api():
     d = request.json or {}
     users = load_users()
-    uname = d.get('username', '')
+    uname = d.get('username','')
     if uname in users:
         del users[uname]
         save_users(users)
         shutil.rmtree(os.path.join(USERS_FOLDER, uname), ignore_errors=True)
-        log_activity(session['username'], 'user.delete', uname)
-    return jsonify({'success': True, 'message': f'تم طرد المستخدم وحذف مجلداته التخزينية نهائياً'})
+        log_activity(session['username'],'user.delete',uname)
+    return jsonify({'success':True})
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  30.  API: Schedules & Automation — Powered by RIKO
-# ─────────────────────────────────────────────────────────────────────────────
-
+# ─── API: Schedules ───
 @app.route('/api/schedules/list')
 @login_required
 def list_schedules_api():
-    return jsonify({'schedules': list(load_schedules().values())})
+    return jsonify({'schedules':list(load_schedules().values())})
 
 @app.route('/api/schedules/add', methods=['POST'])
 @login_required
@@ -6469,23 +4856,13 @@ def add_schedule_api():
     d = request.json or {}
     sch = load_schedules()
     sid = str(uuid.uuid4())[:8]
-    
-    sch[sid] = {
-        'id': sid,
-        'name': d.get('name', ''),
-        'command': d.get('command', ''),
-        'schedule': d.get('schedule', '* * * * *'),
-        'owner': session['username'],
-        'engine': 'RIKO Cron System'
-    }
+    sch[sid] = {'id':sid,'name':d.get('name',''),'command':d.get('command',''),
+                'schedule':d.get('schedule','* * * * *'),'owner':session['username']}
     save_schedules(sch)
-    log_activity(session['username'], 'schedule.add', d.get('name', ''))
-    return jsonify({'success': True, 'message': 'تم جدولة المهمة بنجاح'})
+    log_activity(session['username'],'schedule.add',d.get('name',''))
+    return jsonify({'success':True})
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  31.  API: Backups & Data Protection — Powered by RIKO
-# ─────────────────────────────────────────────────────────────────────────────
-
+# ─── API: Backups ───
 @app.route('/api/backups/list')
 @master_required
 def list_backups_api():
@@ -6493,96 +4870,76 @@ def list_backups_api():
     if os.path.exists(BACKUPS_FOLDER):
         for f in os.listdir(BACKUPS_FOLDER):
             if f.endswith('.tar.gz'):
-                backs.append({
-                    'name': f,
-                    'size': f"{os.path.getsize(os.path.join(BACKUPS_FOLDER, f)) / 1024**2:.2f} MB"
-                })
-    return jsonify({'backups': backs})
+                backs.append({'name':f,'size':f"{os.path.getsize(os.path.join(BACKUPS_FOLDER,f))/1024**2:.2f} MB"})
+    return jsonify({'backups':backs})
 
 @app.route('/api/backups/create', methods=['POST'])
 @master_required
 def create_backup_api():
-    # RIKO branded backup nomenclature
-    name = f"RIKO_Backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.tar.gz"
+    name = f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.tar.gz"
     try:
-        with tarfile.open(os.path.join(BACKUPS_FOLDER, name), 'w:gz') as tar:
-            tar.add(BASE_PATH, arcname='riko_data_vault')
+        with tarfile.open(os.path.join(BACKUPS_FOLDER,name),'w:gz') as tar:
+            tar.add(BASE_PATH, arcname='backup')
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
-        
-    log_activity(session['username'], 'backup.create', name)
-    return jsonify({'success': True, 'message': 'تم استخراج نسخة احتياطية آمنة للنظام'})
+        return jsonify({'success':False,'error':str(e)})
+    log_activity(session['username'],'backup.create',name)
+    return jsonify({'success':True})
 
 @app.route('/api/backups/download')
 @master_required
 def download_backup():
-    name = request.args.get('name', '')
+    name = request.args.get('name','')
     path = os.path.join(BACKUPS_FOLDER, secure_filename(name))
     if not os.path.exists(path):
-        return jsonify({'error': 'ملف النسخة الاحتياطية غير موجود'}), 404
+        return jsonify({'error':'Not found'}), 404
     return send_file(path, as_attachment=True)
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  32.  API: Package Managers (PIP / NPM) — Powered by RIKO
-# ─────────────────────────────────────────────────────────────────────────────
-
+# ─── API: Packages ───
 @app.route('/api/packages/install/pip', methods=['POST'])
 @master_required
 def install_pip_api():
-    pkg = (request.json or {}).get('package', '').strip()
-    if not pkg: 
-        return jsonify({'success': False, 'error': 'يجب تحديد اسم الحزمة'})
-        
+    pkg = (request.json or {}).get('package','')
+    if not pkg: return jsonify({'success':False,'error':'No package'})
     try:
-        subprocess.run([sys.executable, '-m', 'pip', 'install', pkg], capture_output=True, timeout=120)
+        subprocess.run([sys.executable,'-m','pip','install',pkg], capture_output=True, timeout=120)
         pkgs = load_packages()
-        if pkg not in pkgs.get('pip', []): 
-            pkgs.setdefault('pip', []).append(pkg)
+        if pkg not in pkgs.get('pip',[]): pkgs.setdefault('pip',[]).append(pkg)
         save_packages(pkgs)
-        
-        log_activity(session['username'], 'pkg.pip.install', pkg)
-        return jsonify({'success': True, 'message': f'تم تثبيت مكتبة {pkg} بنجاح'})
+        log_activity(session['username'],'pkg.pip.install',pkg)
+        return jsonify({'success':True})
     except Exception as e:
-        return jsonify({'success': False, 'error': f'خطأ أثناء التثبيت: {str(e)}'})
+        return jsonify({'success':False,'error':str(e)})
 
 @app.route('/api/packages/install/npm', methods=['POST'])
 @login_required
 def install_npm_api():
-    pkg = (request.json or {}).get('package', '').strip()
-    if not pkg: 
-        return jsonify({'success': False, 'error': 'يجب تحديد اسم الحزمة'})
-        
+    pkg = (request.json or {}).get('package','')
+    if not pkg: return jsonify({'success':False,'error':'No package'})
     try:
-        r = subprocess.run(['npm', 'install', '-g', pkg], capture_output=True, text=True, timeout=120)
-        log_activity(session['username'], 'pkg.npm.install', pkg)
-        return jsonify({'success': r.returncode == 0, 'output': r.stdout + r.stderr})
+        r = subprocess.run(['npm','install','-g',pkg], capture_output=True, text=True, timeout=120)
+        log_activity(session['username'],'pkg.npm.install',pkg)
+        return jsonify({'success':r.returncode==0,'output':r.stdout+r.stderr})
     except Exception as e:
-        return jsonify({'success': False, 'error': f'خطأ أثناء التثبيت: {str(e)}'})
+        return jsonify({'success':False,'error':str(e)})
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  33.  API: System Logs — Powered by RIKO
-# ─────────────────────────────────────────────────────────────────────────────
-
+# ─── API: Logs ───
 @app.route('/api/logs')
 @master_required
 def get_logs_api():
     if os.path.exists(LOGS_FILE):
-        with open(LOGS_FILE, 'r', encoding='utf-8', errors='ignore') as f:
-            return jsonify({'logs': f.read()[-50000:]})
-    return jsonify({'logs': ''})
+        with open(LOGS_FILE,'r',encoding='utf-8',errors='ignore') as f:
+            return jsonify({'logs':f.read()[-50000:]})
+    return jsonify({'logs':''})
 
 @app.route('/api/logs/clear', methods=['POST'])
 @master_required
 def clear_logs_api():
-    with open(LOGS_FILE, 'w', encoding='utf-8') as f:
-        f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] SYSTEM LOGS CLEARED BY RIKO MASTER ENGINE\n")
-    save_json_file(ACTIVITY_FILE, {'events': []})
-    return jsonify({'success': True, 'message': 'تم مسح سجلات النظام بالكامل'})
+    with open(LOGS_FILE,'w') as f:
+        f.write(f"[{datetime.now()}] CLEARED\n")
+    save_json_file(ACTIVITY_FILE,{'events':[]})
+    return jsonify({'success':True})
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  34.  API: AI Chat (Streaming) — RIKO Intelligence
-# ─────────────────────────────────────────────────────────────────────────────
-
+# ─── API: AI Chat (Streaming) ───
 NVIDIA_AI_KEY = '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'
 NVIDIA_AI_URL = 'https://integrate.api.nvidia.com/v1/chat/completions'
 
@@ -6592,24 +4949,20 @@ def ai_chat_api():
     from flask import Response, stream_with_context
     d = request.json or {}
     messages = d.get('messages', [])
-    
     if not messages:
-        return jsonify({'error': 'لم يتم العثور على رسائل'}), 400
+        return jsonify({'error': 'No messages'}), 400
 
-    # RIKO AI System Prompt Injection
+    # System prompt
     system_msg = {
         'role': 'system',
         'content': (
-            'You are RIKO AI, an advanced expert assistant for developers and server administrators. '
-            'You are integrated into the RIKO Hosting Panel (Developed by @SHBH_S1, Official Channel: @SHOBING_HXH). '
-            'You specialize in Python, Flask, Node.js, PHP, Telegram bots, web hosting, and server security. '
-            'You give concise, practical, and highly accurate answers. For code, always use code blocks. '
-            'If asked about your identity, explicitly state you are RIKO AI developed by @SHBH_S1. '
+            'You are SERVER HUB AI, an expert assistant for developers. '
+            'You specialize in Python, Flask, Node.js, PHP, Telegram bots, web hosting, and server management. '
+            'You give concise, practical answers. For code, always use code blocks. '
             'You can respond in Arabic or English depending on the user language.'
         )
     }
-    
-    full_messages = [system_msg] + messages[-18:]  # keep last 18 messages for context
+    full_messages = [system_msg] + messages[-18:]  # keep last 18 messages
 
     def generate():
         try:
@@ -6626,13 +4979,14 @@ def ai_chat_api():
                 'Content-Type': 'application/json',
                 'Accept': 'text/event-stream'
             }
-            with requests.post(NVIDIA_AI_URL, json=payload, headers=headers, stream=True, timeout=60) as resp:
+            with requests.post(NVIDIA_AI_URL, json=payload, headers=headers,
+                               stream=True, timeout=60) as resp:
                 for line in resp.iter_lines():
                     if line:
                         decoded = line.decode('utf-8') if isinstance(line, bytes) else line
                         yield decoded + '\n\n'
         except Exception as e:
-            yield f'data: {{"error": "فشل الاتصال بخوادم RIKO AI: {str(e)}"}}\n\n'
+            yield f'data: {{"error": "{str(e)}"}}\n\n'
 
     return Response(
         stream_with_context(generate()),
@@ -6643,45 +4997,33 @@ def ai_chat_api():
         }
     )
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  35.  API: Master Settings & Core Control — Powered by RIKO
-# ─────────────────────────────────────────────────────────────────────────────
-
+# ─── API: Master Settings ───
 @app.route('/api/master/change-password', methods=['POST'])
 @master_required
 def change_master_password_api():
     global MASTER_PASSWORD_HASH
     d = request.json or {}
-    
-    if hashlib.sha256(d.get('current_password', '').encode()).hexdigest() == MASTER_PASSWORD_HASH:
-        MASTER_PASSWORD_HASH = hashlib.sha256(d.get('new_password', '').encode()).hexdigest()
+    if hashlib.sha256(d.get('current_password','').encode()).hexdigest() == MASTER_PASSWORD_HASH:
+        MASTER_PASSWORD_HASH = hashlib.sha256(d.get('new_password','').encode()).hexdigest()
         MASTER_CONFIG['master_password_hash'] = MASTER_PASSWORD_HASH
         save_json_file(MASTER_CONFIG_FILE, MASTER_CONFIG)
-        log_activity(session['username'], 'security.password_changed', 'Master Administrator password updated')
-        return jsonify({'success': True, 'message': 'تم تغيير كلمة مرور الإدارة بنجاح'})
-        
-    return jsonify({'success': False, 'error': 'كلمة المرور الحالية غير صحيحة'})
+        return jsonify({'success':True})
+    return jsonify({'success':False,'error':'Wrong password'})
 
 @app.route('/api/master/restart', methods=['POST'])
 @master_required
 def restart_panel_api():
-    log_activity(session['username'], 'panel.restart', 'RIKO System Restart initiated by Master')
-    # Background restart thread to allow request to complete
-    threading.Thread(target=lambda: (time.sleep(1), os.execv(sys.executable, [sys.executable] + sys.argv)), daemon=True).start()
-    return jsonify({'success': True, 'message': 'جاري إعادة تشغيل نظام RIKO...'})
+    log_activity(session['username'],'panel.restart','Restart requested')
+    threading.Thread(target=lambda:(time.sleep(1),os.execv(sys.executable,[sys.executable]+sys.argv)),daemon=True).start()
+    return jsonify({'success':True})
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  36.  API: Owner Configuration & Global System Control — Powered by RIKO
-# ─────────────────────────────────────────────────────────────────────────────
-
+# ─── API: Owner Config ───
 @app.route('/api/owner/config')
 @master_required
 def owner_config_get():
     cfg = load_owner_config()
     safe = dict(cfg)
-    # Masking sensitive data for security
     safe['telegram_token'] = '***' if cfg.get('telegram_token') else ''
-    safe['system_engine'] = 'RIKO Core v2.0'
     return jsonify(safe)
 
 @app.route('/api/owner/config/save', methods=['POST'])
@@ -6692,28 +5034,23 @@ def owner_config_save():
     if 'panel_name' in d: cfg['panel_name'] = d['panel_name']
     if 'welcome_msg' in d: cfg['welcome_msg'] = d['welcome_msg']
     save_json_file(OWNER_CONFIG_FILE, cfg)
-    log_activity(session['username'], 'owner.config.save', '')
-    return jsonify({'success': True, 'message': 'تم حفظ إعدادات لوحة التحكم بنجاح'})
+    log_activity(session['username'],'owner.config.save','')
+    return jsonify({'success':True})
 
-@app.route('/api/owner/maintenance', methods=['GET', 'POST'])
+@app.route('/api/owner/maintenance', methods=['GET','POST'])
 @login_required
 def owner_maintenance_api():
     if request.method == 'GET':
         return jsonify(load_maintenance())
     if session.get('username') != MASTER_USERNAME:
-        return jsonify({'success': False, 'error': 'صلاحيات الماستر فقط'}), 403
-    
+        return jsonify({'success':False,'error':'Master only'}), 403
     d = request.json or {}
     maint = load_maintenance()
     if 'enabled' in d: maint['enabled'] = bool(d['enabled'])
     if 'message' in d: maint['message'] = d['message']
     save_maintenance(maint)
-    log_activity(session['username'], 'maintenance', f'enabled={maint["enabled"]}')
-    return jsonify({'success': True, 'enabled': maint['enabled']})
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  37.  API: Telemetry & Statistics Engine — Powered by RIKO
-# ─────────────────────────────────────────────────────────────────────────────
+    log_activity(session['username'],'maintenance','enabled='+str(maint['enabled']))
+    return jsonify({'success':True,'enabled':maint['enabled']})
 
 @app.route('/api/owner/stats')
 @master_required
@@ -6721,346 +5058,344 @@ def owner_stats_api():
     users = load_users()
     zip_count = 0
     try:
-        # Recursive zip scanning for RIKO data audit
-        for root, dirs, files in os.walk(USERS_FOLDER):
+        for root,dirs,files in os.walk(USERS_FOLDER):
             for f in files:
-                if f.lower().endswith('.zip'): zip_count += 1
+                if f.lower().endswith('.zip'): zip_count+=1
         for f in os.listdir(BASE_PATH):
-            if f.lower().endswith('.zip'): zip_count += 1
+            if f.lower().endswith('.zip'): zip_count+=1
     except Exception: pass
-    
     active_bots = sum(1 for p in file_processes.values() if p['process'].poll() is None)
     active_bots += sum(1 for p in nodejs_processes.values() if p['process'].poll() is None)
-    
-    stats = {
-        'total_users': len(users),
-        'total_servers': len(users),
-        'active_bots': active_bots,
-        'zip_files': zip_count,
-        'last_updated': datetime.now().isoformat(),
-        'engine': 'RIKO Monitoring v2.0'
-    }
+    stats = {'total_users':len(users),'total_servers':len(users),
+             'active_bots':active_bots,'zip_files':zip_count,
+             'last_updated':datetime.now().isoformat()}
     save_json_file(BOT_STATS_FILE, stats)
     return jsonify(stats)
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  38.  API: Telegram Bot Integration (RIKO Bot Manager)
-# ─────────────────────────────────────────────────────────────────────────────
 
 @app.route('/api/owner/bot/link', methods=['POST'])
 @master_required
 def owner_bot_link():
     d = request.json or {}
-    token = d.get('token', '').strip()
-    owner_id = d.get('owner_id', '').strip()
-    
+    token = d.get('token','').strip()
+    owner_id = d.get('owner_id','').strip()
     if not token or not owner_id:
-        return jsonify({'success': False, 'error': 'مطلوب توكن البوت ومعرف المالك (Owner ID)'})
-    
+        return jsonify({'success':False,'error':'Token and owner ID required'})
     try:
         resp = requests.get(f'https://api.telegram.org/bot{token}/getMe', timeout=10)
         data = resp.json()
         if not data.get('ok'):
-            return jsonify({'success': False, 'error': data.get('description', 'توكن غير صالح')})
-            
-        bot_username = data['result'].get('username', 'unknown')
+            return jsonify({'success':False,'error':data.get('description','Invalid token')})
+        bot_username = data['result'].get('username','unknown')
         cfg = load_owner_config()
-        cfg.update({
-            'telegram_token': token, 'telegram_owner_id': owner_id, 
-            'bot_linked': True, 'bot_username': bot_username
-        })
+        cfg.update({'telegram_token':token,'telegram_owner_id':owner_id,'bot_linked':True,'bot_username':bot_username})
         save_json_file(OWNER_CONFIG_FILE, cfg)
-        log_activity(session['username'], 'bot.link', f'@{bot_username}')
-        return jsonify({'success': True, 'bot_username': bot_username})
+        log_activity(session['username'],'bot.link',f'@{bot_username}')
+        return jsonify({'success':True,'bot_username':bot_username})
     except Exception as e:
-        return jsonify({'success': False, 'error': f'تعذر ربط البوت: {str(e)}'})
+        return jsonify({'success':False,'error':str(e)})
+
+@app.route('/api/owner/bot/unlink', methods=['POST'])
+@master_required
+def owner_bot_unlink():
+    cfg = load_owner_config()
+    cfg.update({'telegram_token':'','telegram_owner_id':'','bot_linked':False,'bot_username':''})
+    save_json_file(OWNER_CONFIG_FILE, cfg)
+    log_activity(session['username'],'bot.unlink','')
+    return jsonify({'success':True})
+
+@app.route('/api/owner/bot/action', methods=['POST'])
+@master_required
+def owner_bot_action():
+    d = request.json or {}
+    action = d.get('action','')
+    cfg = load_owner_config()
+    if not cfg.get('bot_linked') or not cfg.get('telegram_token'):
+        return jsonify({'success':False,'error':'Bot not linked'})
+    token = cfg['telegram_token']
+    owner_id = cfg['telegram_owner_id']
+    msgs = {'start':'✅ Bot started','stop':'⏹ Bot stopped','restart':'🔄 Bot restarted'}
+    msg = msgs.get(action, f'Action: {action}')
+    try:
+        requests.post(f'https://api.telegram.org/bot{token}/sendMessage',
+                      json={'chat_id':owner_id,'text':msg}, timeout=10)
+        log_activity(session['username'],f'bot.{action}',msg)
+        return jsonify({'success':True,'message':msg})
+    except Exception as e:
+        return jsonify({'success':False,'error':str(e)})
 
 @app.route('/api/owner/bot/cmd', methods=['POST'])
 @master_required
 def owner_bot_cmd():
     d = request.json or {}
-    cmd = d.get('command', '').strip()
+    cmd = d.get('command','').strip()
     cfg = load_owner_config()
     if not cfg.get('bot_linked'):
-        return jsonify({'success': False, 'error': 'البوت غير مربوط حالياً'})
-    
+        return jsonify({'success':False,'error':'Bot not linked'})
     try:
         r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
         output = r.stdout + r.stderr
         token = cfg['telegram_token']
         owner_id = cfg['telegram_owner_id']
         requests.post(f'https://api.telegram.org/bot{token}/sendMessage',
-                      json={'chat_id': owner_id, 'text': f'🖥 RIKO CMD: {cmd}\n📝 Output:\n{output[:3000]}'}, timeout=10)
-        log_activity(session['username'], 'bot.cmd', cmd[:100])
-        return jsonify({'success': True, 'output': output})
+                      json={'chat_id':owner_id,'text':f'🖥 CMD: {cmd}\n📝 Output:\n{output[:3000]}'}, timeout=10)
+        log_activity(session['username'],'bot.cmd',cmd[:100])
+        return jsonify({'success':True,'output':output})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+        return jsonify({'success':False,'error':str(e)})
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  39.  API: Advanced Archive/Zip Management (RIKO Vault)
-# ─────────────────────────────────────────────────────────────────────────────
+@app.route('/api/owner/zips')
+@master_required
+def owner_list_zips():
+    zips = []
+    try:
+        for user_dir in os.listdir(USERS_FOLDER):
+            user_path = os.path.join(USERS_FOLDER, user_dir)
+            if os.path.isdir(user_path):
+                for root,dirs,files in os.walk(user_path):
+                    for f in files:
+                        if f.lower().endswith('.zip'):
+                            fp = os.path.join(root,f)
+                            zips.append({'name':f,'user':user_dir,'path':fp,'size':f"{os.path.getsize(fp)/1024:.1f} KB"})
+        for f in os.listdir(BASE_PATH):
+            if f.lower().endswith('.zip'):
+                fp = os.path.join(BASE_PATH,f)
+                zips.append({'name':f,'user':'master','path':fp,'size':f"{os.path.getsize(fp)/1024:.1f} KB"})
+    except Exception: pass
+    return jsonify({'zips':zips})
+
+@app.route('/api/owner/zips/download')
+@master_required
+def owner_download_zip():
+    path = request.args.get('path','')
+    if not path or not os.path.exists(path):
+        return jsonify({'success':False,'error':'Not found'}), 404
+    return send_file(path, as_attachment=True)
 
 @app.route('/api/owner/zips/download-all')
 @master_required
 def owner_download_all_zips():
     buf = BytesIO()
-    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+    with zipfile.ZipFile(buf,'w',zipfile.ZIP_DEFLATED) as zf:
         try:
             for user_dir in os.listdir(USERS_FOLDER):
                 user_path = os.path.join(USERS_FOLDER, user_dir)
                 if os.path.isdir(user_path):
-                    for root, dirs, files in os.walk(user_path):
+                    for root,dirs,files in os.walk(user_path):
                         for f in files:
                             if f.lower().endswith('.zip'):
-                                fp = os.path.join(root, f)
-                                zf.write(fp, os.path.join(user_dir, f))
+                                fp = os.path.join(root,f)
+                                zf.write(fp, os.path.join(user_dir,f))
             for f in os.listdir(BASE_PATH):
                 if f.lower().endswith('.zip'):
-                    fp = os.path.join(BASE_PATH, f)
-                    zf.write(fp, os.path.join('master_root', f))
+                    fp = os.path.join(BASE_PATH,f)
+                    zf.write(fp, os.path.join('master',f))
         except Exception: pass
     buf.seek(0)
-    return send_file(buf, as_attachment=True, download_name='RIKO_All_Archives.zip', mimetype='application/zip')
+    return send_file(buf, as_attachment=True, download_name='all_zips.zip', mimetype='application/zip')
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  40.  API: Broadcast & Administrative Actions (RIKO Command Suite)
-# ─────────────────────────────────────────────────────────────────────────────
+@app.route('/api/owner/zips/delete', methods=['POST'])
+@master_required
+def owner_delete_zip():
+    path = (request.json or {}).get('path','')
+    if not path or not os.path.exists(path):
+        return jsonify({'success':False,'error':'Not found'})
+    try:
+        os.remove(path)
+        log_activity(session['username'],'owner.zip.delete',path)
+        return jsonify({'success':True})
+    except Exception as e:
+        return jsonify({'success':False,'error':str(e)})
+
+@app.route('/api/owner/announcements')
+@login_required
+def owner_get_announcements():
+    return jsonify(load_announcements())
+
+@app.route('/api/owner/announcements/add', methods=['POST'])
+@master_required
+def owner_add_announcement():
+    d = request.json or {}
+    text = d.get('text','').strip()
+    if not text: return jsonify({'success':False,'error':'Empty text'})
+    data = load_announcements()
+    data['list'].insert(0,{'text':text,'time':datetime.now().strftime('%Y-%m-%d %H:%M')})
+    data['list'] = data['list'][:50]
+    save_announcements(data)
+    log_activity(session['username'],'announcement.add',text[:80])
+    return jsonify({'success':True})
+
+@app.route('/api/owner/announcements/delete', methods=['POST'])
+@master_required
+def owner_delete_announcement():
+    d = request.json or {}
+    idx = d.get('index',-1)
+    data = load_announcements()
+    try:
+        data['list'].pop(int(idx))
+        save_announcements(data)
+        return jsonify({'success':True})
+    except Exception as e:
+        return jsonify({'success':False,'error':str(e)})
 
 @app.route('/api/owner/broadcast', methods=['POST'])
 @master_required
 def owner_broadcast():
     d = request.json or {}
-    msg = d.get('message', '').strip()
-    if not msg: return jsonify({'success': False, 'error': 'رسالة الإذاعة فارغة'})
-    
+    msg = d.get('message','').strip()
+    if not msg: return jsonify({'success':False,'error':'Empty message'})
     cfg = load_owner_config()
     count = 0
     if cfg.get('bot_linked') and cfg.get('telegram_token'):
         token = cfg['telegram_token']
         try:
             requests.post(f'https://api.telegram.org/bot{token}/sendMessage',
-                          json={'chat_id': cfg['telegram_owner_id'], 'text': f'📡 إعلان RIKO الهام:\n{msg}'}, timeout=10)
+                          json={'chat_id':cfg['telegram_owner_id'],'text':f'📡 Broadcast:\n{msg}'}, timeout=10)
             count += 1
         except Exception: pass
-        
     data = load_announcements()
-    data['list'].insert(0, {'text': f'[BROADCAST] {msg}', 'time': datetime.now().strftime('%Y-%m-%d %H:%M')})
+    data['list'].insert(0,{'text':f'[BROADCAST] {msg}','time':datetime.now().strftime('%Y-%m-%d %H:%M')})
     save_announcements(data)
-    log_activity(session['username'], 'owner.broadcast', msg[:80])
-    return jsonify({'success': True, 'count': count, 'message': 'تم إرسال الإذاعة بنجاح'})
+    log_activity(session['username'],'owner.broadcast',msg[:80])
+    return jsonify({'success':True,'count':count})
 
 @app.route('/api/owner/action', methods=['POST'])
 @master_required
 def owner_action_api():
-    action = (request.json or {}).get('action', '')
+    action = (request.json or {}).get('action','')
     try:
         if action == 'clear_all_logs':
-            with open(LOGS_FILE, 'w') as f: 
-                f.write(f"[{datetime.now()}] CLEARED BY RIKO MASTER\n")
-            save_json_file(ACTIVITY_FILE, {'events': []})
-            
+            with open(LOGS_FILE,'w') as f: f.write(f"[{datetime.now()}] CLEARED BY OWNER\n")
+            save_json_file(ACTIVITY_FILE,{'events':[]})
         elif action == 'kick_all_users':
             sessions = load_user_sessions()
             for u in list(sessions.keys()):
                 if u != MASTER_USERNAME: sessions[u] = 0
             save_user_sessions(sessions)
-            
+        elif action == 'reset_stats':
+            save_json_file(BOT_STATS_FILE,{'total_users':0,'total_servers':0,'active_bots':0,'zip_files':0,'last_updated':''})
         elif action == 'restart_panel':
-            # Safe RIKO Panel Reboot
-            threading.Thread(target=lambda: (time.sleep(1), os.execv(sys.executable, [sys.executable] + sys.argv)), daemon=True).start()
-            
-        log_activity(session['username'], f'owner.action.{action}', '')
-        return jsonify({'success': True, 'message': f'تم تنفيذ الإجراء: {action} بنجاح'})
+            threading.Thread(target=lambda:(time.sleep(1),os.execv(sys.executable,[sys.executable]+sys.argv)),daemon=True).start()
+        log_activity(session['username'],f'owner.action.{action}','')
+        return jsonify({'success':True})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+        return jsonify({'success':False,'error':str(e)})
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  41.  API: Security Alerts & Incident Management — Powered by RIKO
-# ─────────────────────────────────────────────────────────────────────────────
-
+# ─── API: Security Alerts ───
 @app.route('/api/security/alerts')
 @master_required
 def get_security_alerts_api():
-    # Fetching incident logs for RIKO Threat Protection
     data = load_security_alerts()
     return jsonify(data)
 
 @app.route('/api/security/alerts/review', methods=['POST'])
 @master_required
 def review_security_alert_api():
-    alert_id = (request.json or {}).get('id', '')
+    alert_id = (request.json or {}).get('id','')
     data = load_security_alerts()
-    for a in data.get('alerts', []):
+    for a in data.get('alerts',[]):
         if a.get('id') == alert_id:
             a['reviewed'] = True
-            a['reviewed_by'] = session['username']
             break
     save_json_file(SECURITY_ALERTS_FILE, data)
     log_activity(session['username'], 'security.alert.reviewed', alert_id)
-    return jsonify({'success': True, 'message': 'تمت مراجعة التنبيه وتأكيده'})
+    return jsonify({'success': True})
 
 @app.route('/api/security/alerts/delete', methods=['POST'])
 @master_required
 def delete_security_alert_api():
-    alert_id = (request.json or {}).get('id', '')
+    alert_id = (request.json or {}).get('id','')
     data = load_security_alerts()
-    data['alerts'] = [a for a in data.get('alerts', []) if a.get('id') != alert_id]
+    data['alerts'] = [a for a in data.get('alerts',[]) if a.get('id') != alert_id]
     save_json_file(SECURITY_ALERTS_FILE, data)
-    return jsonify({'success': True, 'message': 'تم مسح سجل التهديد'})
+    return jsonify({'success': True})
 
 @app.route('/api/security/alerts/clear', methods=['POST'])
 @master_required
 def clear_security_alerts_api():
     save_json_file(SECURITY_ALERTS_FILE, {'alerts': []})
-    log_activity(session['username'], 'security.alerts.cleared', 'All incidents purged')
-    return jsonify({'success': True, 'message': 'تم تصفير سجلات الأمان بنجاح'})
+    log_activity(session['username'], 'security.alerts.cleared', '')
+    return jsonify({'success': True})
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  42.  Static / Web Hosting (RIKO Infrastructure Isolation)
-# ─────────────────────────────────────────────────────────────────────────────
-
+# ─── Static / Web hosting ───
 @app.route('/static/<filename>')
 def serve_static(filename):
-    # Serving core panel assets
     return send_from_directory(BASE_PATH, filename)
 
 @app.route('/web/<username>/')
 @app.route('/web/<username>/<path:filename>')
 def serve_user_web(username, filename='index.html'):
-    # Isolated path serving for user web projects
     user_path = get_user_path(username)
-    if not os.path.exists(os.path.join(user_path, filename)):
-        return "404 - RIKO Engine Error: Requested file not found", 404
     return send_from_directory(user_path, filename)
 
 @app.route('/api-service/<username>/')
 @app.route('/api-service/<username>/<path:filename>')
 def serve_user_api_files(username, filename='api.json'):
-    # Serving JSON-based API definitions for users
     user_path = get_user_path(username)
     return send_from_directory(user_path, filename)
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  43.  Admin Legacy Routes (Optimized/Redirected)
-# ─────────────────────────────────────────────────────────────────────────────
-
+# ─── Admin legacy routes ───
 @app.route('/admin/users')
 def admin_manage_users():
     if not session.get('logged_in') or session.get('username') != MASTER_USERNAME:
         return redirect('/login')
-    # Redirecting legacy admin routes to the main dashboard
     return redirect('/')
 
 @app.route('/admin/approve/<username>')
 def approve_user_legacy(username):
     if not session.get('logged_in') or session.get('username') != MASTER_USERNAME:
-        return "403 - Forbidden: RIKO Administrative Access Required", 403
-    
+        return "Unauthorized", 403
     users = load_users()
     if username in users:
         users[username]['active'] = True
         save_users(users)
-        log_activity(MASTER_USERNAME, 'user.approve.legacy', username)
-        
-        return f'''
-        <div style="font-family:sans-serif;text-align:center;margin-top:50px;background:#0b0f17;color:#e6edf3;min-height:100vh;padding:40px">
-            <h3 style="color:#3fb950">✅ RIKO Hosting: Account activated successfully for: {html.escape(username)}</h3>
-            <p>Admin Managed by: @SHBH_S1</p>
-            <br>
-            <a href="/" style="color:#7c5cfc;text-decoration:none">← العودة للوحة التحكم</a>
-        </div>
-        '''
-    return "User not found in RIKO database", 404
+        log_activity(MASTER_USERNAME,'user.approve.legacy',username)
+        return f'<div style="font-family:sans-serif;text-align:center;margin-top:50px;background:#0b0f17;color:#e6edf3;min-height:100vh;padding:40px"><h3 style="color:#3fb950">✅ Account activated: {html.escape(username)}</h3><a href="/" style="color:#7c5cfc">← Back to panel</a></div>'
+    return "User not found"
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  44.  RIKO Multi-Port Sub-servers & Dynamic Allocation Engine
+#  21.  Multi-Port Sub-servers
 # ─────────────────────────────────────────────────────────────────────────────
-
 def run_extra_port(port, note=''):
-    """
-    تشغيل خادم فرعي معزول على منفذ مخصص عبر محرك RIKO Engine.
-    """
     try:
         from flask import Flask as _F
-        sub = _F(f'RIKO_SubServer_{port}')
-        
+        sub = _F(f'sub_{port}')
         @sub.route('/')
         def _h():
-            return f'''
-            <div style="font-family:sans-serif;background:#0b0f17;color:#e6edf3;min-height:100vh;display:flex;align-items:center;justify-content:center">
-                <div style="text-align:center">
-                    <h1 style="background:linear-gradient(135deg,#7c5cfc,#00bfff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:36px">
-                        RIKO Hosting Engine
-                    </h1>
-                    <p style="color:#8b949e;margin-top:8px">Active Port: {port}</p>
-                    {(f"<p style='color:#484f58'>{html.escape(note)}</p>") if note else ""}
-                    <p style="margin-top:20px">
-                        <a style="color:#7c5cfc;text-decoration:none" href="/">Return to Panel</a>
-                    </p>
-                    <p style="margin-top:40px;font-size:12px;color:#30363d">Managed by @SHBH_S1</p>
-                </div>
-            </div>
-            '''
-        # تشغيل خادم فرعي مع تهيئة دقيقة لمنع تداخل عمليات الإعادة (Reloader)
-        sub.run(host='0.0.0.0', port=port, debug=False, threaded=True, use_reloader=False)
-        
+            return f'<div style="font-family:sans-serif;background:#0b0f17;color:#e6edf3;min-height:100vh;display:flex;align-items:center;justify-content:center"><div style="text-align:center"><h1 style="background:linear-gradient(135deg,#7c5cfc,#00bfff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:36px">🚀 SERVER HUB</h1><p style="color:#8b949e;margin-top:8px">Port {port}</p>{(f"<p style=\'color:#484f58\'>{html.escape(note)}</p>") if note else ""}<p style="margin-top:20px"><a style="color:#7c5cfc;text-decoration:none" href="/">Open Panel</a></p></div></div>'
+        sub.run(host='0.0.0.0',port=port,debug=False,threaded=True,use_reloader=False)
     except Exception as e:
-        print(f'[RIKO Port Engine] Port {port} initialization failed: {e}')
+        print(f'[port {port}] failed: {e}')
 
 def start_configured_extra_ports():
-    """
-    تحميل المنافذ المخصصة من قاعدة بيانات RIKO وبدء تشغيلها في مسارات منفصلة.
-    """
-    ports_config = load_ports()
-    for p in ports_config:
+    for p in load_ports():
         try:
-            port_num = int(p.get('port', 0))
-            note = p.get('note', '')
-            if port_num > 0:
-                threading.Thread(
-                    target=run_extra_port, 
-                    args=(port_num, note), 
-                    daemon=True,
-                    name=f"RIKO-Port-{port_num}"
-                ).start()
-        except Exception as e:
-            print(f'[RIKO Port Engine] Error spawning thread for port {p.get("port")}: {e}')
+            threading.Thread(target=run_extra_port,args=(int(p['port']),p.get('note','')),daemon=True).start()
+        except Exception: pass
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  45.  Entry Point: RIKO Hosting Engine v2.0
+#  22.  Entry Point
 # ─────────────────────────────────────────────────────────────────────────────
-
 if __name__ == '__main__':
-    # RIKO Branding Colors & ASCII Art
-    G = '\033[32m'; P = '\033[35m'; C = '\033[36m'; Y = '\033[33m'; B = '\033[1m'; R = '\033[0m'
-    
-    print(G + r'''
- ____  ___  _  _____  ___  
-|  _ \|_ _|| |/ / _ \| | | 
-| |_) || | | ' / | | | | | 
-|  _ < | | | . \ |_| | |_| |
-|_| \_\___||_|\_\___/ \___/ 
-    '''.replace('RIKO', 'RIKO') + R)
-    
-    print(P + '\u2554' + '\u2550' * 64 + '\u2557' + R)
-    print(P + '\u2551  \U0001f680  ' + B + C + 'RIKO Hosting Panel v2.0' + R + P + '  \u2015  Developed by @SHBH_S1      \u2551' + R)
-    print(P + '\u255a' + '\u2550' * 64 + '\u255d' + R)
-    
-    print(G + '\u250c\u2500\u2500(' + P + B + 'RIKO' + R + G + '\u1F19A' + C + 'server-hub' + G + ')-[' + Y + '~' + G + ']' + R)
-    print(G + '\u2514\u2500' + P + '$' + R + f' Master User : ' + B + C + '{MASTER_USERNAME}' + R)
-    print(G + '\u2514\u2500' + P + '$' + R + f' Data Root   : ' + Y + '{BASE_PATH}' + R)
+    G='[32m'; P='[35m'; C='[36m'; Y='[33m'; B='[1m'; R='[0m'
+    print(G+r'''
+ ____       ___       _  __        ___  
+|  _ \     |_ _|     | |/ /       / _ \ 
+| |_) |     | |      | ' /       | | | |
+|  _ <      | |      | . \       | |_| |
+|_| \_\    |___|     |_|\_\       \___/ '''+R)
+    print(P+'\u2554'+'\u2550'*64+'\u2557'+R)
+    print(P+'\u2551  \U0001f680  '+B+C+'\U0001d834\U0001d835\U0001d836\U0001d837\U0001d838\U0001d839\U0001d83a\U0001d83b'+R+P+'  \u2015  SERVER HUB v2.0  \u2015  SHBH_S1      \u2551'+R)
+    print(P+'\u255a'+'\u2550'*64+'\u255d'+R)
+    print(G+'\u250c\u2500\u2500('+P+B+'\U0001d834\U0001d835\U0001d836\U0001d837\U0001d838\U0001d839\U0001d83a\U0001d83b'+R+G+'\u1F19A'+C+'server-hub'+G+')-['+Y+'~'+G+']'+R)
+    print(G+'\u2514\u2500'+P+'$'+R+f' Master   : '+B+C+'{MASTER_USERNAME}'+R)
+    print(G+'\u2514\u2500'+P+'$'+R+f' Data dir : '+Y+'{BASE_PATH}'+R)
 
-    # تشغيل خدمات المنافذ الفرعية المخصصة
     start_configured_extra_ports()
 
-    # تحديد المنفذ الرئيسي للوحة
     port = int(os.environ.get('PORT', MASTER_CONFIG.get('port') or 3178))
-    
-    print(f"\n   🌐 Panel URL  : http://0.0.0.0:{port}")
-    print(f"   🔑 Admin User : {MASTER_USERNAME}")
-    print(f"   🛠 Support    : @SHOBING_HXH")
-    print(f"   ⚡ Status     : RIKO Engine Online - All Systems Operational")
-    print("-" * 65 + "\n")
-    
-    # تشغيل تطبيق Flask
+    print(f"   🌐 Panel  : http://0.0.0.0:{port}")
+    print(f"   🔑 Login  : {MASTER_USERNAME} / Bahaa123. (default)")
+    print(f"   📝 Register tab available for new users (requires admin approval)")
+    print(f"   ⚡ PHP / Node.js / Python / ZIP all supported")
+    print()
     app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
