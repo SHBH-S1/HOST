@@ -1217,7 +1217,7 @@ body::before{
         {% endif %}
       </form>
 
-      <div class="foot">SERVER HUB &copy; 2025 &nbsp;·&nbsp; By <a href="https://t.me/I_tt_6" target="_blank">SHBH_S1</a></div>
+      <div class="foot">SERVER HUB &copy; 2025 &nbsp;·&nbsp; By <a href="https://t.me/SHBH_S1" target="_blank">SHBH_S1</a></div>
     </div>
 
   </div>
