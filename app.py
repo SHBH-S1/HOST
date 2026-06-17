@@ -1992,8 +1992,8 @@ input:checked + .slider:before{transform:translateX(20px);background:#fff}
         <a href="https://t.me/I_tt_6" target="_blank" style="text-decoration:none">
           <div class="stat-card"><div class="lbl">👨‍💻 Developer</div><div class="val" style="font-size:12px;color:var(--accent)">SHBH_S1</div></div>
         </a>
-        <a href="https://t.me/Notfound_ELMODMEN" target="_blank" style="text-decoration:none">
-          <div class="stat-card"><div class="lbl">📢 Channel</div><div class="val" style="font-size:12px;color:var(--yellow)">@SHOBING_HXH</div></div>
+        <a href="https://t.me/SHOPING_HXH" target="_blank" style="text-decoration:none">
+          <div class="stat-card"><div class="lbl">📢 Channel</div><div class="val" style="font-size:12px;color:var(--yellow)">@SHOPING_HXH</div></div>
         </a>
         <div class="stat-card"><div class="lbl">🔌 Port</div><div class="val" id="port-display" style="color:var(--green);cursor:pointer" onclick="copyPort()">—</div></div>
       </div>
