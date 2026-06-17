@@ -1989,7 +1989,7 @@ input:checked + .slider:before{transform:translateX(20px);background:#fff}
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px">
-        <a href="https://t.me/I_tt_6" target="_blank" style="text-decoration:none">
+        <a href="https://t.me/SHBH_S1" target="_blank" style="text-decoration:none">
           <div class="stat-card"><div class="lbl">👨‍💻 Developer</div><div class="val" style="font-size:12px;color:var(--accent)">SHBH_S1</div></div>
         </a>
         <a href="https://t.me/SHOPING_HXH" target="_blank" style="text-decoration:none">
