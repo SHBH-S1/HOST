@@ -2,7 +2,7 @@
 """
 ╔══════════════════════════════════════════════════════════════════════════╗
 ║  🚀 SERVER HUB — Professional Hosting Control Panel                      ║
-║  Version: 2.0  |  By: SHBH_S1  |  Admin: RIKO                       ║
+║  Version: 2.0  |  By: SHBH_S1  |  Admin: RIKO                            ║
 ╠══════════════════════════════════════════════════════════════════════════╣
 ║  - Full PHP / Node.js / Python support                                   ║
 ║  - Docker user isolation                                                 ║
